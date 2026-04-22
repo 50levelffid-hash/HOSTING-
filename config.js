@@ -30,7 +30,7 @@ if (!TOKEN) throw new Error('❌ BOT_TOKEN is not set in .env!');
 
 // ── Owner ────────────────────────────────────────────────────
 export const OWNER_ID     = parseInt(process.env.OWNER_ID || '0');
-export const BOT_USERNAME = process.env.BOT_USERNAME || 'apon_vps_bot';
+export const BOT_USERNAME = process.env.BOT_USERNAME || '@Rtfhostingbot';
 export const YOUR_USERNAME  = '@rtfgamming';
 export const UPDATE_CHANNEL = 'https://t.me/RTFGAMINGHACK0';
 
@@ -64,11 +64,11 @@ export const PLAN_LIMITS = {
 
 // ── Payment Methods ──────────────────────────────────────────
 export const PAYMENT_METHODS = {
-  bkash:   { name: 'bKash',       number: '01306633616',            type: 'Send Money',       icon: '🟪' },
-  nagad:   { name: 'Nagad',       number: '01306633616',            type: 'Send Money',       icon: '🟧' },
-  rocket:  { name: 'Rocket',      number: '01306633616',            type: 'Send Money',       icon: '🟦' },
-  upay:    { name: 'Upay',        number: '01306633616',            type: 'Send Money',       icon: '🟩' },
-  binance: { name: 'Binance Pay', number: 'Binance ID: 758637628', type: 'Binance Pay/USDT', icon: '🟡' },
+  bkash:   { name: 'RTF',       number: 'Contact Admin',            type: 'Send Money',       icon: '🟪' },
+  nagad:   { name: 'RTF',       number: 'Contact Admin',            type: 'Send Money',       icon: '🟧' },
+  rocket:  { name: 'RTF',      number: 'Contact Admin',            type: 'Send Money',       icon: '🟦' },
+  upay:    { name: 'RTF',        number: 'Contact Admin',            type: 'Send Money',       icon: '🟩' },
+  binance: { name: 'Binance Pay', number: 'Binance ID: ®®®®®®®®', type: 'Binance Pay/USDT', icon: '🟡' },
   bank:    { name: 'Bank',        number: 'Contact Admin',          type: 'Transfer',         icon: '🏦' },
 };
 
