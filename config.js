@@ -41,21 +41,25 @@ export const DB_NAME          = 'apon_hosting';
 export const DB_STORAGE_WARN_MB  = parseInt(process.env.DB_STORAGE_WARN_MB  || '400');
 export const DB_STORAGE_LIMIT_MB = parseInt(process.env.DB_STORAGE_LIMIT_MB || '490');
 
-// ── Bank Info ───────────────────────────────────────────────
-export const BANK_ACCOUNT_NUMBER = process.env.BANK_ACCOUNT_NUMBER;
-export const UID = process.env.UID;
-export const BANK_NAME = process.env.BANK_NAME;
+// ── Branding ─────────────────────────────────────────────────
+export const BRAND = '🌟 RTF HOSTING PANEL';
+export const BRAND_VER = 'v7.0';
+export const BRAND_TAG = `${BRAND} ${BRAND_VER}`;
+export const BRAND_FOOTER = `\n━━━━━━━━━━━━━━━━━━━━\n${BRAND_TAG}`; // यह लाइन जोड़ें!
 
-// ── Plans with Conversion ───────────────────────────────────
-const EXCHANGE_RATE = 1.2; // BDT to INR
+// ── Force Subscribe ──────────────────────────────────────────
+export const DEFAULT_FORCE_CHANNELS = {
+  RTFGAMINGHACK0: 'RTFGAMINGHACK0',
+};
 
+// ── Plans ────────────────────────────────────────────────────
 export const PLAN_LIMITS = {
   free:       { name: '🆓 Free',       max_bots: 1,  ram: 128,  auto_restart: false, price: 0    },
-  starter:    { name: '🟢 Starter',    max_bots: 2,  ram: 256,  auto_restart: true,  price: 20 * EXCHANGE_RATE },
-  basic:      { name: '⭐ Basic',       max_bots: 5,  ram: 512,  auto_restart: true,  price: 50 * EXCHANGE_RATE  },
-  pro:        { name: '💎 Pro',         max_bots: 15, ram: 2048, auto_restart: true,  price: 100 * EXCHANGE_RATE  },
-  enterprise: { name: '🏢 Enterprise',  max_bots: 50, ram: 4096, auto_restart: true,  price: 400 * EXCHANGE_RATE  },
-  lifetime:   { name: '👑 Lifetime',    max_bots: -1, ram: 8192, auto_restart: true,  price: 1000 * EXCHANGE_RATE },
+  starter:    { name: '🟢 Starter',    max_bots: 2,  ram: 256,  auto_restart: true,  price: 99   },
+  basic:      { name: '⭐ Basic',       max_bots: 5,  ram: 512,  auto_restart: true,  price: 199  },
+  pro:        { name: '💎 Pro',         max_bots: 15, ram: 2048, auto_restart: true,  price: 499  },
+  enterprise: { name: '🏢 Enterprise',  max_bots: 50, ram: 4096, auto_restart: true,  price: 999  },
+  lifetime:   { name: '👑 Lifetime',    max_bots: -1, ram: 8192, auto_restart: true,  price: 1999 },
 };
 
 // ── Payment Methods ──────────────────────────────────────────
