@@ -30,7 +30,7 @@ if (!TOKEN) throw new Error('❌ BOT_TOKEN is not set in .env!');
 
 // ── Owner ────────────────────────────────────────────────────
 export const OWNER_ID     = parseInt(process.env.OWNER_ID || '0');
-export const BOT_USERNAME = process.env.BOT_USERNAME || '@Rtfhostingbot';
+export const BOT_USERNAME = process.env.BOT_USERNAME || 'apon_vps_bot';
 export const YOUR_USERNAME  = '@rtfgamming';
 export const UPDATE_CHANNEL = 'https://t.me/RTFGAMINGHACK0';
 
@@ -41,56 +41,32 @@ export const DB_NAME          = 'apon_hosting';
 export const DB_STORAGE_WARN_MB  = parseInt(process.env.DB_STORAGE_WARN_MB  || '400');
 export const DB_STORAGE_LIMIT_MB = parseInt(process.env.DB_STORAGE_LIMIT_MB || '490');
 
-// ── Branding ─────────────────────────────────────────────────
-export const BRAND        = '🌟 RTF HOSTING PANEL';
-export const BRAND_VER    = 'v7.0';
-export const BRAND_TAG    = `${BRAND} ${BRAND_VER}`;
-export const BRAND_FOOTER = `\n━━━━━━━━━━━━━━━━━━━━\n${BRAND_TAG}`;
+// ── Bank Info ───────────────────────────────────────────────
+export const BANK_ACCOUNT_NUMBER = process.env.BANK_ACCOUNT_NUMBER;
+export const UID = process.env.UID;
+export const BANK_NAME = process.env.BANK_NAME;
 
-// ── Force Subscribe ──────────────────────────────────────────
-export const DEFAULT_FORCE_CHANNELS = {
-  RTFGAMINGHACK0: 'RTFGAMINGHACK0',
-};
+// ── Plans with Conversion ───────────────────────────────────
+const EXCHANGE_RATE = 1.2; // BDT to INR
 
-// ── Plans ────────────────────────────────────────────────────
 export const PLAN_LIMITS = {
   free:       { name: '🆓 Free',       max_bots: 1,  ram: 128,  auto_restart: false, price: 0    },
-  starter:    { name: '🟢 Starter',    max_bots: 2,  ram: 256,  auto_restart: true,  price: 20   },
-  basic:      { name: '⭐ Basic',       max_bots: 5,  ram: 512,  auto_restart: true,  price: 50  },
-  pro:        { name: '💎 Pro',         max_bots: 15, ram: 2048, auto_restart: true,  price: 100  },
-  enterprise: { name: '🏢 Enterprise',  max_bots: 50, ram: 4096, auto_restart: true,  price: 400  },
-  lifetime:   { name: '👑 Lifetime',    max_bots: -1, ram: 8192, auto_restart: true,  price: 1000 },
+  starter:    { name: '🟢 Starter',    max_bots: 2,  ram: 256,  auto_restart: true,  price: 20 * EXCHANGE_RATE },
+  basic:      { name: '⭐ Basic',       max_bots: 5,  ram: 512,  auto_restart: true,  price: 50 * EXCHANGE_RATE  },
+  pro:        { name: '💎 Pro',         max_bots: 15, ram: 2048, auto_restart: true,  price: 100 * EXCHANGE_RATE  },
+  enterprise: { name: '🏢 Enterprise',  max_bots: 50, ram: 4096, auto_restart: true,  price: 400 * EXCHANGE_RATE  },
+  lifetime:   { name: '👑 Lifetime',    max_bots: -1, ram: 8192, auto_restart: true,  price: 1000 * EXCHANGE_RATE },
 };
 
 // ── Payment Methods ──────────────────────────────────────────
 export const PAYMENT_METHODS = {
-  RTF_1: { name: 'BRAJENDRA TYAGI', upiid: '70497398@axl', type: 'Send Money', icon: '🟪' },
-  RTF_2: { name: 'BRAJENDRA TYAGI', 'ACCOUNT NUMBER': '027210168522', type: 'Send Money', icon: '🟧' },
-  RTF_3: { name: 'BRAJENDRA', UPIID: '70497398@axl', type: 'Send Money', icon: '🟦' },
-  RTF_4: { name: 'BRAJENDRA TYAGI', UPI: '70497398@axl', type: 'Send Money', icon: '🟩' },
-  binance: { name: 'Binance Pay', number: 'Binance ID: @RTFGAMMING', type: 'Binance Pay/USDT', icon: '🟡' },
-  bank: { name: 'Bank', number: 'Contact Admin', type: 'Transfer', icon: '🏦' },
+  bank:    { name: 'Bank',        number: '027210168522',          type: 'Transfer',         icon: '🏦' },
+  upi:     { name: 'UPI',         number: '70497398@axl',          type: 'UPI Payment',      icon: '🔵' },
 };
+
 // ── Referral ─────────────────────────────────────────────────
 export const REF_BONUS_DAYS = 3;
 export const REF_COMMISSION = 20;
 
-// ── Module map ───────────────────────────────────────────────
-export const MODULES_MAP = {
-  telebot: 'pytelegrambotapi', telegram: 'python-telegram-bot',
-  pyrogram: 'pyrogram', telethon: 'telethon', aiogram: 'aiogram',
-  PIL: 'Pillow', cv2: 'opencv-python', sklearn: 'scikit-learn',
-  bs4: 'beautifulsoup4', dotenv: 'python-dotenv', yaml: 'pyyaml',
-  aiohttp: 'aiohttp', numpy: 'numpy', pandas: 'pandas',
-  requests: 'requests', flask: 'flask', fastapi: 'fastapi',
-  motor: 'motor', pymongo: 'pymongo', httpx: 'httpx',
-};
-
 // ── Server ───────────────────────────────────────────────────
 export const PORT = parseInt(process.env.PORT || '8080');
-
-// ── Timing ───────────────────────────────────────────────────
-export const FREE_BOT_MAX_HOURS          = parseInt(process.env.FREE_BOT_MAX_HOURS          || '24');
-export const MAIN_BOT_AUTO_RESTART_HOURS = parseInt(process.env.MAIN_BOT_AUTO_RESTART_HOURS || '24');
-export const DAILY_REPORT_HOUR           = parseInt(process.env.DAILY_REPORT_HOUR           || '0');
-export const DAILY_REPORT_MINUTE         = parseInt(process.env.DAILY_REPORT_MINUTE         || '0');
