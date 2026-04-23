@@ -47,6 +47,12 @@ export const BRAND_VER = 'v7.0';
 export const BRAND_TAG = `${BRAND} ${BRAND_VER}`;
 export const BRAND_FOOTER = `\n━━━━━━━━━━━━━━━━━━━━\n${BRAND_TAG}`;
 
+// ── Timing ───────────────────────────────────────────────────
+export const DAILY_REPORT_HOUR = parseInt(process.env.DAILY_REPORT_HOUR || '0');
+export const DAILY_REPORT_MINUTE = parseInt(process.env.DAILY_REPORT_MINUTE || '0');
+export const REF_BONUS_DAYS = 3;
+export const REF_COMMISSION = 20;
+
 // ── Module map ───────────────────────────────────────────────
 export const MODULES_MAP = {
   telebot: 'pytelegrambotapi', telegram: 'python-telegram-bot',
@@ -78,10 +84,6 @@ export const PAYMENT_METHODS = {
   bank:    { name: 'Bank',        number: '027210168522',          type: 'Transfer',         icon: '🏦' },
   upi:     { name: 'UPI',         number: '70497398@axl',          type: 'UPI Payment',      icon: '🔵' },
 };
-
-// ── Referral ─────────────────────────────────────────────────
-export const REF_BONUS_DAYS = 3;
-export const REF_COMMISSION = 20;
 
 // ── Server ───────────────────────────────────────────────────
 export const PORT = parseInt(process.env.PORT || '8080');
