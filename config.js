@@ -64,12 +64,12 @@ export const PLAN_LIMITS = {
 
 // ── Payment Methods ──────────────────────────────────────────
 export const PAYMENT_METHODS = {
-  RTF:   { name: 'BRAJENDRA TYAGI',       upiid: '70497398@axl',            type: 'Send Money',       icon: '🟪' },
-  RTF:   { name: 'BRAJENDRA TYAGI',       ACCOUNT NUMBER: '027210168522',            type: 'Send Money',       icon: '🟧' },
-  RTF:  { name: 'BRAJENDRA',      UPIID: '70497398@axl',            type: 'Send Money',       icon: '🟦' },
-  RTF:    { name: 'BRAJENDRA TYAGI',        UPI: '70497398@axl',            type: 'Send Money',       icon: '🟩' },
+  RTF_1: { name: 'BRAJENDRA TYAGI', upiid: '70497398@axl', type: 'Send Money', icon: '🟪' },
+  RTF_2: { name: 'BRAJENDRA TYAGI', 'ACCOUNT NUMBER': '027210168522', type: 'Send Money', icon: '🟧' },
+  RTF_3: { name: 'BRAJENDRA', UPIID: '70497398@axl', type: 'Send Money', icon: '🟦' },
+  RTF_4: { name: 'BRAJENDRA TYAGI', UPI: '70497398@axl', type: 'Send Money', icon: '🟩' },
   binance: { name: 'Binance Pay', number: 'Binance ID: @RTFGAMMING', type: 'Binance Pay/USDT', icon: '🟡' },
-  bank:    { name: 'Bank',        number: 'Contact Admin',          type: 'Transfer',         icon: '🏦' },
+  bank: { name: 'Bank', number: 'Contact Admin', type: 'Transfer', icon: '🏦' },
 };
 // ── Referral ─────────────────────────────────────────────────
 export const REF_BONUS_DAYS = 3;
