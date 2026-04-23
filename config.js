@@ -48,11 +48,12 @@ export const BRAND_TAG = `${BRAND} ${BRAND_VER}`;
 export const BRAND_FOOTER = `\n━━━━━━━━━━━━━━━━━━━━\n${BRAND_TAG}`;
 
 // ── Timing ───────────────────────────────────────────────────
+export const FREE_BOT_MAX_HOURS = parseInt(process.env.FREE_BOT_MAX_HOURS || '24');
+export const MAIN_BOT_AUTO_RESTART_HOURS = parseInt(process.env.MAIN_BOT_AUTO_RESTART_HOURS || '24');
 export const DAILY_REPORT_HOUR = parseInt(process.env.DAILY_REPORT_HOUR || '0');
 export const DAILY_REPORT_MINUTE = parseInt(process.env.DAILY_REPORT_MINUTE || '0');
 export const REF_BONUS_DAYS = 3;
 export const REF_COMMISSION = 20;
-
 // ── Module map ───────────────────────────────────────────────
 export const MODULES_MAP = {
   telebot: 'pytelegrambotapi', telegram: 'python-telegram-bot',
