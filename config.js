@@ -73,11 +73,11 @@ export const DEFAULT_FORCE_CHANNELS = {
 // ── Plans ────────────────────────────────────────────────────
 export const PLAN_LIMITS = {
   free:       { name: '🆓 Free',       max_bots: 1,  ram: 128,  auto_restart: false, price: 0    },
-  starter:    { name: '🟢 Starter',    max_bots: 2,  ram: 256,  auto_restart: true,  price: 99   },
-  basic:      { name: '⭐ Basic',       max_bots: 5,  ram: 512,  auto_restart: true,  price: 199  },
-  pro:        { name: '💎 Pro',         max_bots: 15, ram: 2048, auto_restart: true,  price: 499  },
-  enterprise: { name: '🏢 Enterprise',  max_bots: 50, ram: 4096, auto_restart: true,  price: 999  },
-  lifetime:   { name: '👑 Lifetime',    max_bots: -1, ram: 8192, auto_restart: true,  price: 1999 },
+  starter:    { name: '🟢 Starter',    max_bots: 2,  ram: 256,  auto_restart: true,  price: 20   },
+  basic:      { name: '⭐ Basic',       max_bots: 5,  ram: 512,  auto_restart: true,  price: 50  },
+  pro:        { name: '💎 Pro',         max_bots: 15, ram: 2048, auto_restart: true,  price: 100  },
+  enterprise: { name: '🏢 Enterprise',  max_bots: 50, ram: 4096, auto_restart: true,  price: 400  },
+  lifetime:   { name: '👑 Lifetime',    max_bots: -1, ram: 8192, auto_restart: true,  price: 1000 },
 };
 
 // ── Payment Methods ──────────────────────────────────────────
