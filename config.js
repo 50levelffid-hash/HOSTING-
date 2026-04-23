@@ -45,7 +45,18 @@ export const DB_STORAGE_LIMIT_MB = parseInt(process.env.DB_STORAGE_LIMIT_MB || '
 export const BRAND = '🌟 RTF HOSTING PANEL';
 export const BRAND_VER = 'v7.0';
 export const BRAND_TAG = `${BRAND} ${BRAND_VER}`;
-export const BRAND_FOOTER = `\n━━━━━━━━━━━━━━━━━━━━\n${BRAND_TAG}`; // यह लाइन जोड़ें!
+export const BRAND_FOOTER = `\n━━━━━━━━━━━━━━━━━━━━\n${BRAND_TAG}`;
+
+// ── Module map ───────────────────────────────────────────────
+export const MODULES_MAP = {
+  telebot: 'pytelegrambotapi', telegram: 'python-telegram-bot',
+  pyrogram: 'pyrogram', telethon: 'telethon', aiogram: 'aiogram',
+  PIL: 'Pillow', cv2: 'opencv-python', sklearn: 'scikit-learn',
+  bs4: 'beautifulsoup4', dotenv: 'python-dotenv', yaml: 'pyyaml',
+  aiohttp: 'aiohttp', numpy: 'numpy', pandas: 'pandas',
+  requests: 'requests', flask: 'flask', fastapi: 'fastapi',
+  motor: 'motor', pymongo: 'pymongo', httpx: 'httpx',
+};
 
 // ── Force Subscribe ──────────────────────────────────────────
 export const DEFAULT_FORCE_CHANNELS = {
