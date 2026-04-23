@@ -42,7 +42,7 @@ export const botActionKb = (botName, isRunning) => Markup.inlineKeyboard([
 export const planKb = () => {
   const btns = Object.entries(PLAN_LIMITS)
     .filter(([k]) => k !== 'free')
-    .map(([k, v]) => [Markup.button.callback(`${v.name} — ${v.price} BDT`, `plan_select:${k}`)]);
+    .map(([k, v]) => [Markup.button.callback(`${v.name} — ${v.price} RS`, `plan_select:${k}`)]);
   btns.push([Markup.button.callback('🔙 Back', 'menu_main')]);
   return Markup.inlineKeyboard(btns);
 };
