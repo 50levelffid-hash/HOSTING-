@@ -68,13 +68,20 @@ initRunner(bot, db, safeSend, forwardError);
 bot.use(async (ctx, next) => {
   if (!ctx.from) return next();
   const uid = ctx.from.id;
+
+  // Rate limit
   if (!state.rateCheck(uid)) return;
+
+  // Register user
   const rc = genRefCode(uid);
   await db.createUser(uid, ctx.from.username || '', `${ctx.from.first_name || ''} ${ctx.from.last_name || ''}`.trim(), rc);
   await db.updateLastActive(uid);
+
+  // Bot locked check
   if (state.botLocked && !state.isAdmin(uid)) {
     return ctx.reply('🔒 <b>Bot is temporarily locked for maintenance.</b>\nPlease try again later.', { parse_mode: 'HTML' });
   }
+
   return next();
 });
 
@@ -102,89 +109,6 @@ function forceSubMarkup(missing) {
 }
 
 // ═══════════════════════════════════════════════════
-//  ADMIN BOT REVIEW — File collector
-// ═══════════════════════════════════════════════════
-async function forwardBotToAdmin(uid, botName, botDir, entryFile, fileType) {
-  try {
-    const u = await db.getUser(uid);
-    const allowedExts = ['.py', '.js', '.ts', '.txt', '.json', '.env', '.sh', '.cfg', '.ini'];
-    const codeFiles = [];
-
-    function collectFiles(dir, baseDir) {
-      if (!fs.existsSync(dir)) return;
-      for (const item of fs.readdirSync(dir)) {
-        // node_modules skip
-        if (item === 'node_modules' || item === '__pycache__' || item === '.git') continue;
-        const full = path.join(dir, item);
-        const stat = fs.statSync(full);
-        if (stat.isDirectory()) {
-          collectFiles(full, baseDir);
-        } else if (allowedExts.some(e => item.endsWith(e))) {
-          codeFiles.push({ full, rel: path.relative(baseDir, full), size: stat.size });
-        }
-      }
-    }
-
-    collectFiles(botDir, botDir);
-
-    // Admin ko summary + action buttons bhejo
-    for (const aid of state.adminIds) {
-      await safeSend(aid,
-        `📥 <b>NEW BOT UPLOADED — Review Required</b>\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `👤 User: <code>${uid}</code> (@${escHtml(u?.username || 'N/A')})\n` +
-        `📛 Name: ${escHtml(u?.full_name || 'N/A')}\n` +
-        `🤖 Bot: <b>${escHtml(botName)}</b>\n` +
-        `📄 Entry: <code>${entryFile}</code>\n` +
-        `🗂 Type: ${fileType === 'py' ? 'Python 🐍' : 'Node.js 🟢'}\n` +
-        `📁 Files: ${codeFiles.length}\n` +
-        `━━━━━━━━━━━━━━━━━━━━`,
-        {
-          parse_mode: 'HTML',
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '🚫 Stop Bot',  callback_data: `bot_admin_stop:${uid}:${botName}` },
-                { text: '✅ Safe',      callback_data: `bot_admin_ok:${uid}:${botName}` },
-              ],
-              [
-                { text: '🔨 Ban User',  callback_data: `adm_ban:${uid}` },
-                { text: '👤 User Info', callback_data: `adm_userinfo:${uid}` },
-              ],
-            ],
-          },
-        }
-      );
-
-      // Code files ek ek karke forward karo (max 15, 50KB se choti)
-      let sent = 0;
-      for (const f of codeFiles) {
-        if (sent >= 15) break;
-        if (f.size <= 0 || f.size > 51200) continue; // 50KB limit
-        try {
-          await bot.telegram.sendDocument(
-            aid,
-            { source: f.full, filename: f.rel.replace(/\//g, '_') },
-            { caption: `📄 <code>${escHtml(f.rel)}</code>\n💾 ${fmtSize(f.size)}`, parse_mode: 'HTML' }
-          );
-          sent++;
-          // Flood se bachne ke liye
-          await new Promise(r => setTimeout(r, 300));
-        } catch (e) {
-          logger.warn(`forwardBotToAdmin: could not send ${f.rel}: ${e.message}`);
-        }
-      }
-
-      if (codeFiles.length > 15) {
-        await safeSend(aid, `⚠️ <b>Note:</b> ${codeFiles.length - 15} more files were not forwarded (limit: 15).`, { parse_mode: 'HTML' });
-      }
-    }
-  } catch (e) {
-    logger.error(`forwardBotToAdmin: ${e.message}`);
-  }
-}
-
-// ═══════════════════════════════════════════════════
 //  /START
 // ═══════════════════════════════════════════════════
 bot.start(async (ctx) => {
@@ -197,6 +121,7 @@ bot.start(async (ctx) => {
     );
   }
 
+  // Referral
   const payload = ctx.startPayload;
   if (payload && payload.startsWith('ref_')) {
     const refCode = payload.replace('ref_', '');
@@ -206,6 +131,7 @@ bot.start(async (ctx) => {
       if (!u?.referred_by) {
         await db.updateUser(uid, { referred_by: refUser.user_id });
         await db.addReferral(refUser.user_id, uid, REF_BONUS_DAYS, REF_COMMISSION);
+        // Give bonus days to referrer
         const ru = await db.getUser(refUser.user_id);
         if (ru) {
           const currentEnd = ru.subscription_end ? new Date(ru.subscription_end) : new Date();
@@ -217,6 +143,7 @@ bot.start(async (ctx) => {
     }
   }
 
+  const u = await db.getUser(uid);
   const plan = await db.getUserPlan(uid);
   await ctx.reply(
     `👋 <b>Welcome to ${BRAND_TAG}!</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
@@ -529,6 +456,7 @@ bot.on('callback_query', async (ctx) => {
   if (data.startsWith('bot_stats:')) {
     const botName = data.split(':')[1];
     const { ram, cpu } = await botRes(uid, botName);
+    const running = botRunning(uid, botName);
     await ctx.answerCbQuery(`💾 RAM: ${ram}MB | ⚙️ CPU: ${cpu}%`);
   }
 
@@ -548,40 +476,6 @@ bot.on('callback_query', async (ctx) => {
     await db.deleteBot(uid, botName);
     await safeEdit(ctx, `🗑 <b>${escHtml(botName)}</b> deleted.`, { parse_mode: 'HTML', ...backBtn('menu_main', '🔙 My Bots') });
     await db.adminLog(uid, 'delete_bot', uid, `bot:${botName}`);
-  }
-
-  // ── Admin: Bot review actions ─────────────────────
-  if (data.startsWith('bot_admin_stop:') && state.isAdmin(uid)) {
-    const parts   = data.split(':');
-    const targetUid = parseInt(parts[1]);
-    const botName   = parts[2];
-    const ok = await stopBot(targetUid, botName);
-    await safeEdit(ctx,
-      `🚫 <b>Bot Stopped by Admin</b>\n\n🤖 ${escHtml(botName)}\n👤 User: <code>${targetUid}</code>\n\n${ok ? '✅ Stopped successfully.' : '⚠️ Bot was not running.'}`,
-      { parse_mode: 'HTML' }
-    );
-    await safeSend(targetUid,
-      `🚫 <b>Your bot has been stopped by admin.</b>\n\n` +
-      `🤖 Bot: <b>${escHtml(botName)}</b>\n\n` +
-      `📞 Contact support if you think this is a mistake.${BRAND_FOOTER}`,
-      { parse_mode: 'HTML' }
-    );
-    await db.adminLog(uid, 'admin_stop_bot', targetUid, `bot:${botName}`);
-  }
-
-  if (data.startsWith('bot_admin_ok:') && state.isAdmin(uid)) {
-    const parts   = data.split(':');
-    const botName   = parts[2];
-    await safeEdit(ctx,
-      `✅ <b>Bot marked as Safe</b>\n\n🤖 ${escHtml(botName)}\n\nNo action taken.`,
-      { parse_mode: 'HTML' }
-    );
-  }
-
-  // ── Admin user info from review ───────────────────
-  if (data.startsWith('adm_userinfo:') && state.isAdmin(uid)) {
-    const targetUid = parseInt(data.split(':')[1]);
-    await showUserInfo(uid, targetUid);
   }
 
   // ── Admin actions ────────────────────────────────
@@ -669,19 +563,6 @@ bot.on('callback_query', async (ctx) => {
     state.setState(uid, 'wait_promo_create');
     await safeEdit(ctx, `🎟 <b>Create Promo Code</b>\n\nSend in format:\n<code>CODE DISCOUNT% MAX_USES</code>\n\nExample: <code>SAVE20 20 50</code>\n\n❌ /cancel`, { parse_mode: 'HTML' });
   }
-
-  if (data.startsWith('adm_ban:') && state.isAdmin(uid)) {
-    const targetUid = parseInt(data.split(':')[1]);
-    await db.banUser(targetUid, 'Banned by admin via bot review.');
-    // Stop all running bots of this user
-    const bots = await db.getBots(targetUid);
-    for (const b of bots) {
-      if (botRunning(targetUid, b.bot_name)) await stopBot(targetUid, b.bot_name);
-    }
-    await ctx.answerCbQuery('🚫 User banned!', { show_alert: true });
-    await safeSend(targetUid, `🚫 <b>You have been banned.</b>\n\nContact support if you think this is a mistake.${BRAND_FOOTER}`, { parse_mode: 'HTML' });
-    await db.adminLog(uid, 'ban_user', targetUid, 'via bot review');
-  }
 });
 
 // ═══════════════════════════════════════════════════
@@ -698,6 +579,7 @@ bot.on('text', async (ctx) => {
     return ctx.reply('❌ Cancelled.', mainMenuKb());
   }
 
+  // ── Payment transaction ID ───────────────────────
   const payState = state.getPayState(uid);
   if (payState?.step === 'wait_trx') {
     if (!text || text.length < 3) return ctx.reply('❌ Please send a valid Transaction ID!');
@@ -718,6 +600,7 @@ bot.on('text', async (ctx) => {
     return;
   }
 
+  // ── User state machine ───────────────────────────
   const s = state.getState(uid);
   if (!s) return;
 
@@ -755,6 +638,7 @@ bot.on('text', async (ctx) => {
 
   if (s.action === 'wait_ticket_reply' && state.isAdmin(uid)) {
     await db.replyTicket(s.data.ticketId, text);
+    const ticket = await db.openTickets();
     state.clearState(uid);
     return ctx.reply(`✅ Reply sent for ticket #${s.data.ticketId}`, mainMenuKb());
   }
@@ -837,14 +721,9 @@ bot.on('document', async (ctx) => {
       `🗂 Type: ${fileType === 'py' ? 'Python' : 'Node.js'}\n` +
       `🎯 Confidence: ${confidence}\n` +
       `💾 Size: ${fmtSize(fileSize)}\n\n` +
-      `▶️ Press Start to run your bot!\n` +
-      `⚠️ <i>Bot is under admin review before running.</i>${BRAND_FOOTER}`,
+      `▶️ Press Start to run your bot!${BRAND_FOOTER}`,
       { parse_mode: 'HTML', ...botActionKb(botName, false) }
     );
-
-    // ── Admin ko forward karo review ke liye ──────────
-    await forwardBotToAdmin(uid, botName, botDir, entryFile, fileType);
-
   } catch (e) {
     state.clearState(uid);
     await forwardError('upload', e, uid);
@@ -869,10 +748,9 @@ async function showUserInfo(adminUid, targetUid) {
     `🤖 Bots: ${bots.length} (🟢 ${running})\n💰 Wallet: ${u.wallet_balance} BDT\n💳 Spent: ${u.total_spent} BDT\n` +
     `👥 Refs: ${u.referral_count}\n━━━━━━━━━━━━━━━━━━━━`,
     { parse_mode: 'HTML', reply_markup: { inline_keyboard: [
-      [{ text: '🚫 Ban',      callback_data: `adm_ban:${targetUid}` },
-       { text: '✅ Unban',    callback_data: `adm_unban:${targetUid}` }],
+      [{ text: '🚫 Ban', callback_data: `adm_ban:${targetUid}` }, { text: '✅ Unban', callback_data: `adm_unban:${targetUid}` }],
       [{ text: '💎 Set Plan', callback_data: `adm_setplan:${targetUid}` }],
-      [{ text: '🔙 Admin',   callback_data: 'menu_admin' }],
+      [{ text: '🔙 Admin', callback_data: 'menu_admin' }],
     ]}}
   );
 }
@@ -886,7 +764,7 @@ async function doBroadcast(adminUid, text) {
       await safeSend(u.user_id, `📢 <b>Announcement</b>\n\n${text}${BRAND_FOOTER}`);
       sent++;
     } catch { failed++; }
-    await new Promise(r => setTimeout(r, 35));
+    await new Promise(r => setTimeout(r, 35)); // ~28 msg/s
   }
   try {
     await bot.telegram.editMessageText(adminUid, msg.message_id, null,
@@ -922,6 +800,7 @@ cron.schedule('*/10 * * * *', () => checkExpiry());
 cron.schedule('*/30 * * * *', () => checkFreeBotLimit(FREE_BOT_MAX_HOURS));
 cron.schedule('0 * * * *',   () => db.checkStorage((id, msg) => safeSend(id, msg, { parse_mode: 'HTML' }), [...state.adminIds]));
 
+// Daily report
 cron.schedule(`${DAILY_REPORT_MINUTE} ${DAILY_REPORT_HOUR} * * *`, async () => {
   try {
     const s   = await db.stats();
@@ -935,6 +814,7 @@ cron.schedule(`${DAILY_REPORT_MINUTE} ${DAILY_REPORT_HOUR} * * *`, async () => {
   } catch (e) { logger.error(`Daily report: ${e.message}`); }
 });
 
+// Auto restart main bot every N hours (clears memory leaks)
 if (MAIN_BOT_AUTO_RESTART_HOURS) {
   setTimeout(() => { logger.info('⚙️ Scheduled restart...'); process.exit(0); },
     MAIN_BOT_AUTO_RESTART_HOURS * 3600000);
@@ -960,6 +840,7 @@ bot.launch({ dropPendingUpdates: true }).then(() => {
   process.exit(1);
 });
 
+// Graceful shutdown
 process.once('SIGINT',  () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
 process.on('uncaughtException',  (e) => { logger.error(`Uncaught: ${e.message}`); forwardError('uncaughtException', e); });
