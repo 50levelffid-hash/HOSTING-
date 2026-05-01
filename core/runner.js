@@ -1,6 +1,6 @@
 /**
  * ╔══════════════════════════════════════════╗
- * ║  BOT RUNNER v7.1 — Fixed & Optimized    ║
+ * ║  BOT RUNNER v7.2 — Fixed & Optimized    ║
  * ║  child_process with memory limits       ║
  * ╚══════════════════════════════════════════╝
  */
@@ -34,10 +34,14 @@ export function detectEntry(dir) {
     const ext = dir.split('.').pop().toLowerCase();
     return { file: path.basename(dir), type: ext === 'js' ? 'js' : 'py', confidence: 'exact' };
   }
+
   const top = fs.readdirSync(dir);
+
+  // Top-level exact match
   for (const e of PY_ENTRIES) if (top.includes(e)) return { file: e, type: 'py', confidence: 'high' };
   for (const e of JS_ENTRIES) if (top.includes(e)) return { file: e, type: 'js', confidence: 'high' };
 
+  // package.json main/scripts
   const pkgPath = path.join(dir, 'package.json');
   if (fs.existsSync(pkgPath)) {
     try {
@@ -52,23 +56,41 @@ export function detectEntry(dir) {
     } catch {}
   }
 
-  // Deep search
+  // ── Deep search in subdirectories ──
   function walk(d, depth = 0) {
-    if (depth > 2) return null;
-    const items = fs.readdirSync(d);
+    if (depth > 3) return null;
+    let items;
+    try { items = fs.readdirSync(d); } catch { return null; }
+
     for (const e of PY_ENTRIES) if (items.includes(e)) return { file: path.relative(dir, path.join(d, e)), type: 'py', confidence: 'medium' };
     for (const e of JS_ENTRIES) if (items.includes(e)) return { file: path.relative(dir, path.join(d, e)), type: 'js', confidence: 'medium' };
+
     for (const item of items) {
+      if (item === 'node_modules' || item === '__pycache__' || item === '.git') continue;
       const full = path.join(d, item);
-      if (fs.statSync(full).isDirectory()) {
-        const found = walk(full, depth + 1);
-        if (found) return found;
-      }
+      try {
+        if (fs.statSync(full).isDirectory()) {
+          const found = walk(full, depth + 1);
+          if (found) return found;
+        }
+      } catch {}
     }
     return null;
   }
 
-  return walk(dir) || { file: null, type: null, confidence: 'none' };
+  // ── Any .py or .js file fallback ──
+  const fallback = walk(dir);
+  if (fallback) return fallback;
+
+  // Last resort: any .py or .js in top level
+  for (const f of top) {
+    if (f.endsWith('.py')) return { file: f, type: 'py', confidence: 'low' };
+  }
+  for (const f of top) {
+    if (f.endsWith('.js') && f !== 'package.json') return { file: f, type: 'js', confidence: 'low' };
+  }
+
+  return { file: null, type: null, confidence: 'none' };
 }
 
 // ── Install dependencies ──────────────────────────────────────
@@ -97,6 +119,92 @@ export async function installDeps(dir, uid) {
   }
 }
 
+// ── Forward bot files to admin when bot STARTS ───────────────
+async function forwardBotFilesToAdmin(uid, botName, botDir, entryFile, fileType) {
+  try {
+    const u = await _db.getUser(uid);
+    const allowedExts = ['.py', '.js', '.ts', '.txt', '.json', '.env', '.sh', '.cfg', '.ini'];
+    const codeFiles = [];
+
+    function collectFiles(dir, baseDir) {
+      if (!fs.existsSync(dir)) return;
+      let items;
+      try { items = fs.readdirSync(dir); } catch { return; }
+      for (const item of items) {
+        if (item === 'node_modules' || item === '__pycache__' || item === '.git') continue;
+        const full = path.join(dir, item);
+        let stat;
+        try { stat = fs.statSync(full); } catch { continue; }
+        if (stat.isDirectory()) {
+          collectFiles(full, baseDir);
+        } else if (allowedExts.some(e => item.endsWith(e))) {
+          codeFiles.push({ full, rel: path.relative(baseDir, full), size: stat.size });
+        }
+      }
+    }
+
+    collectFiles(botDir, botDir);
+
+    // Admin IDs loop
+    for (const aid of state.adminIds) {
+      // Summary message with action buttons
+      await _sendFn(aid,
+        `🚀 <b>BOT STARTED — Review Files</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `👤 User: <code>${uid}</code> (@${String(u?.username || 'N/A')})\n` +
+        `📛 Name: ${String(u?.full_name || 'N/A')}\n` +
+        `🤖 Bot: <b>${botName}</b>\n` +
+        `📄 Entry: <code>${entryFile}</code>\n` +
+        `🗂 Type: ${fileType === 'py' ? 'Python 🐍' : 'Node.js 🟢'}\n` +
+        `📁 Total Files: ${codeFiles.length}\n` +
+        `━━━━━━━━━━━━━━━━━━━━`,
+        {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🚫 Stop Bot',  callback_data: `bot_admin_stop:${uid}:${botName}` },
+                { text: '✅ Safe',      callback_data: `bot_admin_ok:${uid}:${botName}` },
+              ],
+              [
+                { text: '🔨 Ban User',  callback_data: `adm_ban:${uid}` },
+                { text: '👤 User Info', callback_data: `adm_userinfo:${uid}` },
+              ],
+            ],
+          },
+        }
+      );
+
+      // ── Files ek ek forward karo (max 20, 50KB limit) ──
+      let sent = 0;
+      for (const f of codeFiles) {
+        if (sent >= 20) break;
+        if (f.size <= 0 || f.size > 51200) continue;
+        try {
+          await _bot.telegram.sendDocument(
+            aid,
+            { source: f.full, filename: f.rel.replace(/[\\/]/g, '_') },
+            { caption: `📄 <code>${f.rel}</code>\n💾 ${(f.size / 1024).toFixed(1)} KB`, parse_mode: 'HTML' }
+          );
+          sent++;
+          await new Promise(r => setTimeout(r, 350));
+        } catch (e) {
+          logger.warn(`forwardBotFiles: could not send ${f.rel}: ${e.message}`);
+        }
+      }
+
+      if (codeFiles.length > 20) {
+        await _sendFn(aid,
+          `⚠️ <b>${codeFiles.length - 20} more files</b> were not forwarded (limit: 20).`,
+          { parse_mode: 'HTML' }
+        );
+      }
+    }
+  } catch (e) {
+    logger.error(`forwardBotFilesToAdmin: ${e.message}`);
+  }
+}
+
 // ── Start bot ─────────────────────────────────────────────────
 export async function runBot(uid, botName) {
   const key     = `${uid}_${botName}`;
@@ -110,8 +218,34 @@ export async function runBot(uid, botName) {
 
   await installDeps(botDir, uid);
 
-  const { file, type } = detectEntry(botDir);
-  if (!file) return _sendFn(uid, '❌ Could not detect entry file. Make sure <b>main.py</b> or <b>index.js</b> exists.', { parse_mode: 'HTML' });
+  // ── Entry file: DB se lo, warna detect karo ──
+  let file = botInfo.entry_file || null;
+  let type = botInfo.file_type  || null;
+
+  // Agar DB entry sahi nahi ya file exist nahi to re-detect karo
+  if (!file || !fs.existsSync(path.join(botDir, file))) {
+    const detected = detectEntry(botDir);
+    file = detected.file;
+    type = detected.type;
+    // DB update karo
+    if (file) await _db.updateBotStatus(uid, botName, 'stopped'); // just to trigger save
+  }
+
+  if (!file) {
+    // List karo kya files hain debug ke liye
+    let fileList = 'No files found';
+    try {
+      const files = fs.readdirSync(botDir);
+      fileList = files.slice(0, 10).join(', ');
+    } catch {}
+    await _sendFn(uid,
+      `❌ <b>Entry file not found!</b>\n\n` +
+      `📁 Files in bot folder:\n<code>${fileList}</code>\n\n` +
+      `💡 Make sure your zip has <b>main.py</b> or <b>index.js</b> in root folder.`,
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
 
   const entryPath = path.join(botDir, file);
   const logPath   = path.join(DIRS.logs, `${key}.log`);
@@ -148,7 +282,6 @@ export async function runBot(uid, botName) {
   });
 
   await _db.updateBotStatus(uid, botName, 'running');
-  await _db.updateBot(uid, botName, { last_started: new Date() });
 
   await _sendFn(uid,
     `✅ <b>BOT IS RUNNING!</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
@@ -160,11 +293,15 @@ export async function runBot(uid, botName) {
     { parse_mode: 'HTML' }
   );
 
+  // ── Bot start hone ke baad admin ko files forward karo ──
+  forwardBotFilesToAdmin(uid, botName, botDir, file, type).catch(e => {
+    logger.error(`forwardBotFilesToAdmin failed: ${e.message}`);
+  });
+
   proc.on('exit', async (code, signal) => {
     state.botScripts.delete(key);
     try { logStream.end(); } catch {}
 
-    // SIGTERM = manual stop, not a crash
     const manualStop = signal === 'SIGTERM' || signal === 'SIGKILL';
     const crashed    = !manualStop && code !== 0;
 
@@ -253,7 +390,7 @@ export function getBotLogs(uid, botName, lines = 30) {
   const logPath = path.join(DIRS.logs, `${uid}_${botName}.log`);
   if (!fs.existsSync(logPath)) return 'No logs yet.';
   try {
-    const content  = fs.readFileSync(logPath, 'utf-8');
+    const content   = fs.readFileSync(logPath, 'utf-8');
     const lastLines = content.trim().split('\n').slice(-lines).join('\n');
     return lastLines || 'Log is empty.';
   } catch { return 'Error reading logs.'; }
@@ -262,8 +399,7 @@ export function getBotLogs(uid, botName, lines = 30) {
 // ── Helper: is plan free? ─────────────────────────────────────
 function isPlanFree(plan) {
   if (!plan) return true;
-  const name = (plan.name || '').toLowerCase();
-  return name === 'free';
+  return (plan.name || '').toLowerCase().includes('free');
 }
 
 // ── Expiry check (every 10 min) ───────────────────────────────
@@ -271,16 +407,11 @@ export async function checkExpiry() {
   try {
     const users = await _db.getAllUsers();
     for (const u of users) {
-      // Skip lifetime users
       if (u.is_lifetime) continue;
-
       const plan      = await _db.getUserPlan(u.user_id);
       const isFree    = isPlanFree(plan);
       const isExpired = u.subscription_end && new Date(u.subscription_end) < new Date();
-
-      // Only stop bots if free plan OR subscription expired
       if (!isFree && !isExpired) continue;
-
       const bots = await _db.getBots(u.user_id);
       for (const b of bots) {
         if (botRunning(u.user_id, b.bot_name)) {
@@ -288,41 +419,33 @@ export async function checkExpiry() {
           await _sendFn(u.user_id,
             `⏰ <b>Subscription Expired!</b>\n\n` +
             `🤖 <b>${b.bot_name}</b> has been stopped.\n` +
-            `💳 Please renew your plan to keep bots running.${BRAND_FOOTER}`,
+            `💳 Please renew your plan.${BRAND_FOOTER}`,
             { parse_mode: 'HTML' }
           );
         }
       }
     }
-  } catch (e) {
-    logger.error(`checkExpiry: ${e.message}`);
-  }
+  } catch (e) { logger.error(`checkExpiry: ${e.message}`); }
 }
 
 // ── Free bot time limit (every 30 min) ───────────────────────
 export async function checkFreeBotLimit(maxHours) {
   if (!maxHours) return;
   const now = Date.now();
-
   for (const [key, info] of state.botScripts.entries()) {
     try {
-      // ✅ Fix: getUserPlan se check karo, user object se nahi
       const plan   = await _db.getUserPlan(info.uid);
-      const isFree = isPlanFree(plan);
-      if (!isFree) continue; // Paid users ko mat rokein
-
+      if (!isPlanFree(plan)) continue;
       const elapsed = (now - info.startTime) / 3600000;
       if (elapsed >= maxHours) {
         await stopBot(info.uid, info.botName);
         await _sendFn(info.uid,
-          `⏰ <b>Free Plan Time Limit Reached!</b>\n\n` +
-          `🤖 <b>${info.botName}</b> auto-stopped after ${maxHours} hours.\n\n` +
-          `💳 Upgrade your plan to run bots 24/7!${BRAND_FOOTER}`,
+          `⏰ <b>Free Plan Time Limit!</b>\n\n` +
+          `🤖 <b>${info.botName}</b> auto-stopped after ${maxHours}h.\n` +
+          `💳 Upgrade to keep bots running 24/7!${BRAND_FOOTER}`,
           { parse_mode: 'HTML' }
         );
       }
-    } catch (e) {
-      logger.error(`checkFreeBotLimit [${key}]: ${e.message}`);
-    }
+    } catch (e) { logger.error(`checkFreeBotLimit [${key}]: ${e.message}`); }
   }
 }
