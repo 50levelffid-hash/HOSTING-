@@ -1,6 +1,6 @@
 /**
  * ╔══════════════════════════════════════════╗
- * ║  BOT RUNNER v7.0 — RAM Optimized        ║
+ * ║  BOT RUNNER v7.1 — Fixed & Optimized    ║
  * ║  child_process with memory limits       ║
  * ╚══════════════════════════════════════════╝
  */
@@ -11,15 +11,15 @@ import fs from 'fs';
 import path from 'path';
 import pidusage from 'pidusage';
 import treeKill from 'tree-kill';
-import { DIRS, PLAN_LIMITS, MODULES_MAP, BRAND_FOOTER } from '../config.js';
+import { DIRS, PLAN_LIMITS, BRAND_FOOTER } from '../config.js';
 import { state } from './state.js';
 import { logger } from './logger.js';
 
 let _bot, _db, _sendFn, _errorFn;
 
 export function initRunner(bot, db, sendFn, errorFn) {
-  _bot = bot;
-  _db  = db;
+  _bot     = bot;
+  _db      = db;
   _sendFn  = sendFn;
   _errorFn = errorFn;
 }
@@ -77,49 +77,48 @@ export async function installDeps(dir, uid) {
   const pkgPath = path.join(dir, 'package.json');
 
   if (fs.existsSync(reqPath)) {
-    if (uid) _sendFn(uid, '📦 Installing <b>requirements.txt</b>... Please wait.');
+    if (uid) await _sendFn(uid, '📦 Installing <b>requirements.txt</b>... Please wait.', { parse_mode: 'HTML' });
     try {
       execSync(`pip3 install -r ${reqPath} --quiet --break-system-packages --no-warn-script-location`, {
         cwd: dir, timeout: 300000, stdio: 'pipe'
       });
     } catch (e) {
-      if (uid) _sendFn(uid, `⚠️ <b>Install warning:</b>\n<code>${String(e.stderr || e.message).slice(-400)}</code>`);
+      if (uid) await _sendFn(uid, `⚠️ <b>Install warning:</b>\n<code>${String(e.stderr || e.message).slice(-400)}</code>`, { parse_mode: 'HTML' });
     }
   }
 
   if (fs.existsSync(pkgPath) && !fs.existsSync(path.join(dir, 'node_modules'))) {
-    if (uid) _sendFn(uid, '📦 Running <b>npm install</b>...');
+    if (uid) await _sendFn(uid, '📦 Running <b>npm install</b>...', { parse_mode: 'HTML' });
     try {
       execSync('npm install --production', { cwd: dir, timeout: 300000, stdio: 'pipe' });
     } catch (e) {
-      if (uid) _sendFn(uid, `⚠️ <b>npm install warning:</b>\n<code>${String(e.stderr || e.message).slice(-400)}</code>`);
+      if (uid) await _sendFn(uid, `⚠️ <b>npm install warning:</b>\n<code>${String(e.stderr || e.message).slice(-400)}</code>`, { parse_mode: 'HTML' });
     }
   }
 }
 
 // ── Start bot ─────────────────────────────────────────────────
 export async function runBot(uid, botName) {
-  const key = `${uid}_${botName}`;
+  const key     = `${uid}_${botName}`;
   const botInfo = await _db.getBot(uid, botName);
   if (!botInfo) return _sendFn(uid, '❌ Bot not found!');
 
   if (isRunning(key)) return _sendFn(uid, '⚠️ Bot is already running!');
 
-  const plan = await _db.getUserPlan(uid);
+  const plan   = await _db.getUserPlan(uid);
   const botDir = botInfo.file_path;
 
   await installDeps(botDir, uid);
 
   const { file, type } = detectEntry(botDir);
-  if (!file) return _sendFn(uid, '❌ Could not detect entry file. Make sure <b>main.py</b> or <b>index.js</b> exists.');
+  if (!file) return _sendFn(uid, '❌ Could not detect entry file. Make sure <b>main.py</b> or <b>index.js</b> exists.', { parse_mode: 'HTML' });
 
   const entryPath = path.join(botDir, file);
   const logPath   = path.join(DIRS.logs, `${key}.log`);
   const logStream = fs.createWriteStream(logPath, { flags: 'a' });
 
-  // ── RAM limit via ulimit (Linux) ────────────────
   const ramMb = plan.ram || 256;
-  let cmd, args, opts;
+  let cmd, args;
 
   if (type === 'py') {
     cmd  = 'python3';
@@ -129,52 +128,86 @@ export async function runBot(uid, botName) {
     args = [`--max-old-space-size=${ramMb}`, entryPath];
   }
 
-  opts = {
-    cwd:     botDir,
-    stdio:   ['ignore', 'pipe', 'pipe'],
+  const opts = {
+    cwd:      botDir,
+    stdio:    ['ignore', 'pipe', 'pipe'],
     detached: false,
-    env: { ...process.env, BOT_DIR: botDir },
+    env:      { ...process.env, BOT_DIR: botDir },
   };
 
   const proc = spawn(cmd, args, opts);
   proc.stdout.pipe(logStream);
   proc.stderr.pipe(logStream);
 
-  state.botScripts.set(key, { process: proc, logFile: logStream, uid, botName, startTime: Date.now() });
+  state.botScripts.set(key, {
+    process:   proc,
+    logFile:   logStream,
+    uid,
+    botName,
+    startTime: Date.now(),
+  });
+
   await _db.updateBotStatus(uid, botName, 'running');
-  _sendFn(uid, `✅ <b>BOT IS RUNNING!</b>\n━━━━━━━━━━━━━━━━━━━━\n\n🤖 Bot: <b>${botName}</b>\n📄 File: <code>${file}</code>\n🗂 Type: ${type === 'py' ? 'Python' : 'Node.js'}\n💾 RAM Limit: ${ramMb} MB\n━━━━━━━━━━━━━━━━━━━━`);
+  await _db.updateBot(uid, botName, { last_started: new Date() });
+
+  await _sendFn(uid,
+    `✅ <b>BOT IS RUNNING!</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `🤖 Bot: <b>${botName}</b>\n` +
+    `📄 File: <code>${file}</code>\n` +
+    `🗂 Type: ${type === 'py' ? 'Python 🐍' : 'Node.js 🟢'}\n` +
+    `💾 RAM Limit: ${ramMb} MB\n` +
+    `━━━━━━━━━━━━━━━━━━━━`,
+    { parse_mode: 'HTML' }
+  );
 
   proc.on('exit', async (code, signal) => {
-    const info = state.botScripts.get(key);
     state.botScripts.delete(key);
     try { logStream.end(); } catch {}
 
-    const crashed = code !== 0 && signal !== 'SIGTERM';
+    // SIGTERM = manual stop, not a crash
+    const manualStop = signal === 'SIGTERM' || signal === 'SIGKILL';
+    const crashed    = !manualStop && code !== 0;
+
     await _db.updateBotStatus(uid, botName, crashed ? 'crashed' : 'stopped');
 
-    if (crashed && plan.auto_restart) {
+    if (crashed) {
       await _db.incrementBotRestarts(uid, botName);
-      _sendFn(uid, `⚠️ <b>BOT CRASHED — Auto restarting...</b>\n🤖 ${botName}\n🔄 Exit: ${code}`);
-      setTimeout(() => runBot(uid, botName), 3000);
-    } else if (crashed) {
-      _sendFn(uid, `❌ <b>BOT CRASHED</b>\n🤖 ${botName}\n❌ Exit code: ${code}\n💡 Auto-restart: Plan upgrade needed`);
+      if (plan.auto_restart) {
+        await _sendFn(uid,
+          `⚠️ <b>BOT CRASHED — Auto Restarting...</b>\n\n` +
+          `🤖 <b>${botName}</b>\n🔄 Exit code: ${code}\n⏳ Restarting in 5s...`,
+          { parse_mode: 'HTML' }
+        );
+        setTimeout(() => runBot(uid, botName), 5000);
+      } else {
+        await _sendFn(uid,
+          `❌ <b>BOT CRASHED</b>\n\n` +
+          `🤖 <b>${botName}</b>\n` +
+          `❌ Exit code: ${code}\n\n` +
+          `💡 Upgrade plan for auto-restart!${BRAND_FOOTER}`,
+          { parse_mode: 'HTML' }
+        );
+      }
     }
   });
 
   proc.on('error', (err) => {
     logger.error(`Bot ${key} spawn error: ${err.message}`);
+    _errorFn?.(`runner:spawn:${key}`, err);
   });
 }
 
 // ── Stop bot ──────────────────────────────────────────────────
 export async function stopBot(uid, botName) {
-  const key = `${uid}_${botName}`;
+  const key  = `${uid}_${botName}`;
   const info = state.botScripts.get(key);
   if (!info) return false;
 
   return new Promise((resolve) => {
     treeKill(info.process.pid, 'SIGTERM', async (err) => {
-      if (err) treeKill(info.process.pid, 'SIGKILL');
+      if (err) {
+        try { treeKill(info.process.pid, 'SIGKILL'); } catch {}
+      }
       state.botScripts.delete(key);
       try { info.logFile.end(); } catch {}
       await _db.updateBotStatus(uid, botName, 'stopped');
@@ -188,20 +221,25 @@ export function isRunning(key) {
   const info = state.botScripts.get(key);
   if (!info) return false;
   const proc = info.process;
-  if (proc.exitCode !== null) return false;
+  if (proc.exitCode !== null || proc.killed) return false;
   try { process.kill(proc.pid, 0); return true; } catch { return false; }
 }
 
-export function botRunning(uid, botName) { return isRunning(`${uid}_${botName}`); }
+export function botRunning(uid, botName) {
+  return isRunning(`${uid}_${botName}`);
+}
 
 // ── Bot resource usage ────────────────────────────────────────
 export async function botRes(uid, botName) {
-  const key = `${uid}_${botName}`;
+  const key  = `${uid}_${botName}`;
   const info = state.botScripts.get(key);
   if (!info) return { ram: 0, cpu: 0 };
   try {
     const stats = await pidusage(info.process.pid);
-    return { ram: Math.round(stats.memory / 1024 / 1024 * 10) / 10, cpu: Math.round(stats.cpu * 10) / 10 };
+    return {
+      ram: Math.round(stats.memory / 1024 / 1024 * 10) / 10,
+      cpu: Math.round(stats.cpu * 10) / 10,
+    };
   } catch { return { ram: 0, cpu: 0 }; }
 }
 
@@ -215,10 +253,17 @@ export function getBotLogs(uid, botName, lines = 30) {
   const logPath = path.join(DIRS.logs, `${uid}_${botName}.log`);
   if (!fs.existsSync(logPath)) return 'No logs yet.';
   try {
-    const content = fs.readFileSync(logPath, 'utf-8');
+    const content  = fs.readFileSync(logPath, 'utf-8');
     const lastLines = content.trim().split('\n').slice(-lines).join('\n');
     return lastLines || 'Log is empty.';
   } catch { return 'Error reading logs.'; }
+}
+
+// ── Helper: is plan free? ─────────────────────────────────────
+function isPlanFree(plan) {
+  if (!plan) return true;
+  const name = (plan.name || '').toLowerCase();
+  return name === 'free';
 }
 
 // ── Expiry check (every 10 min) ───────────────────────────────
@@ -226,32 +271,58 @@ export async function checkExpiry() {
   try {
     const users = await _db.getAllUsers();
     for (const u of users) {
-      const plan = await _db.getUserPlan(u.user_id);
-      if (plan === PLAN_LIMITS.free) {
-        const bots = await _db.getBots(u.user_id);
-        for (const b of bots) {
-          if (botRunning(u.user_id, b.bot_name)) {
-            await stopBot(u.user_id, b.bot_name);
-            _sendFn(u.user_id, `⏰ <b>Subscription Expired!</b>\n\n🤖 <b>${b.bot_name}</b> has been stopped.\n💳 Please renew your plan.${BRAND_FOOTER}`);
-          }
+      // Skip lifetime users
+      if (u.is_lifetime) continue;
+
+      const plan      = await _db.getUserPlan(u.user_id);
+      const isFree    = isPlanFree(plan);
+      const isExpired = u.subscription_end && new Date(u.subscription_end) < new Date();
+
+      // Only stop bots if free plan OR subscription expired
+      if (!isFree && !isExpired) continue;
+
+      const bots = await _db.getBots(u.user_id);
+      for (const b of bots) {
+        if (botRunning(u.user_id, b.bot_name)) {
+          await stopBot(u.user_id, b.bot_name);
+          await _sendFn(u.user_id,
+            `⏰ <b>Subscription Expired!</b>\n\n` +
+            `🤖 <b>${b.bot_name}</b> has been stopped.\n` +
+            `💳 Please renew your plan to keep bots running.${BRAND_FOOTER}`,
+            { parse_mode: 'HTML' }
+          );
         }
       }
     }
-  } catch (e) { logger.error(`checkExpiry: ${e.message}`); }
+  } catch (e) {
+    logger.error(`checkExpiry: ${e.message}`);
+  }
 }
 
-// ── Free bot time limit ───────────────────────────────────────
+// ── Free bot time limit (every 30 min) ───────────────────────
 export async function checkFreeBotLimit(maxHours) {
   if (!maxHours) return;
   const now = Date.now();
+
   for (const [key, info] of state.botScripts.entries()) {
-    const elapsed = (now - info.startTime) / 3600000;
-    if (elapsed >= maxHours) {
-      const u = await _db.getUser(info.uid);
-      if (u && u.plan === 'free') {
+    try {
+      // ✅ Fix: getUserPlan se check karo, user object se nahi
+      const plan   = await _db.getUserPlan(info.uid);
+      const isFree = isPlanFree(plan);
+      if (!isFree) continue; // Paid users ko mat rokein
+
+      const elapsed = (now - info.startTime) / 3600000;
+      if (elapsed >= maxHours) {
         await stopBot(info.uid, info.botName);
-        _sendFn(info.uid, `⏰ <b>Free Plan Time Limit!</b>\n\n🤖 <b>${info.botName}</b> auto-stopped after ${maxHours}h.\n💳 Upgrade to keep bots running 24/7.${BRAND_FOOTER}`);
+        await _sendFn(info.uid,
+          `⏰ <b>Free Plan Time Limit Reached!</b>\n\n` +
+          `🤖 <b>${info.botName}</b> auto-stopped after ${maxHours} hours.\n\n` +
+          `💳 Upgrade your plan to run bots 24/7!${BRAND_FOOTER}`,
+          { parse_mode: 'HTML' }
+        );
       }
+    } catch (e) {
+      logger.error(`checkFreeBotLimit [${key}]: ${e.message}`);
     }
   }
 }
