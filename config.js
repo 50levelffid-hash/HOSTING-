@@ -71,12 +71,7 @@ export const PAYMENT_METHODS = {
 };
 
 // ── Force Subscribe Channels (default) ──────────────────────
-export const DEFAULT_FORCE_CHANNELS = {
-  'RTFGMINGGC':      'RTF Gaming',
-  'RTFGAMINGHACK0':  'RTF Gaming Hack',
-  'BYEPAASLINK':     'Bye Paas Link',
-};
-
+export const DEFAULT_FORCE_CHANNELS = {};
 // ── Referral ─────────────────────────────────────────────────
 export const REF_BONUS_DAYS = 3;
 export const REF_COMMISSION = 20;
