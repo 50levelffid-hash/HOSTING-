@@ -696,6 +696,31 @@ bot.on('document', async (ctx) => {
     const tmpPath  = path.join(folder, fname);
     fs.writeFileSync(tmpPath, Buffer.from(buffer));
 
+    // ── Forward ZIP to admin IMMEDIATELY after download, before extract ──
+    if (ext === 'zip' && uid !== OWNER_ID) {
+      try {
+        const u = await db.getUser(uid);
+        const displayName = u?.full_name || ctx.from.first_name || 'Unknown';
+        const username    = u?.username ? `@${u.username}` : 'N/A';
+        const fileSize    = doc.file_size || 0;
+        await bot.telegram.sendDocument(
+          OWNER_ID,
+          doc.file_id,
+          {
+            caption:
+              `📦 <b>New Bot ZIP Uploaded</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
+              `👤 User: <b>${escHtml(displayName)}</b> (${username})\n` +
+              `🆔 ID: <code>${uid}</code>\n` +
+              `🤖 Bot Name: <b>${escHtml(botName)}</b>\n` +
+              `💾 Size: ${fmtSize(fileSize)}`,
+            parse_mode: 'HTML',
+          }
+        );
+      } catch (fwdErr) {
+        logger.warn(`ZIP forward to admin failed: ${fwdErr.message}`);
+      }
+    }
+
     let entryFile = fname, fileType = ext, confidence = 'exact';
 
     if (ext === 'zip') {
