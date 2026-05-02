@@ -110,9 +110,10 @@ export async function installDeps(dir, uid) {
   }
 
   if (fs.existsSync(pkgPath) && !fs.existsSync(path.join(dir, 'node_modules'))) {
-    if (uid) await _sendFn(uid, '📦 Running <b>npm install</b>...', { parse_mode: 'HTML' });
+    if (uid) await _sendFn(uid, '📦 Running <b>npm install</b>... (this may take 1-2 min)', { parse_mode: 'HTML' });
     try {
-      execSync('npm install --production', { cwd: dir, timeout: 300000, stdio: 'pipe' });
+      execSync('npm install --legacy-peer-deps', { cwd: dir, timeout: 600000, stdio: 'pipe' });
+      if (uid) await _sendFn(uid, '✅ <b>npm install done!</b>', { parse_mode: 'HTML' });
     } catch (e) {
       if (uid) await _sendFn(uid, `⚠️ <b>npm install warning:</b>\n<code>${String(e.stderr || e.message).slice(-400)}</code>`, { parse_mode: 'HTML' });
     }
