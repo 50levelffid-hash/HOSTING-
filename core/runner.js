@@ -94,26 +94,6 @@ export function detectEntry(dir) {
 }
 
 // ── Install dependencies ──────────────────────────────────────
-function runCommand(cmd, args, cwd, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { cwd, stdio: 'pipe', shell: false });
-    let stderr = '';
-    let stdout = '';
-    proc.stdout?.on('data', d => { stdout += d.toString(); });
-    proc.stderr?.on('data', d => { stderr += d.toString(); });
-    const timer = setTimeout(() => {
-      try { proc.kill(); } catch {}
-      reject(new Error(`Timeout after ${timeoutMs / 1000}s\n${stderr.slice(-300)}`));
-    }, timeoutMs);
-    proc.on('close', code => {
-      clearTimeout(timer);
-      if (code === 0) resolve(stdout);
-      else reject(new Error(stderr.slice(-400) || `exit code ${code}`));
-    });
-    proc.on('error', err => { clearTimeout(timer); reject(err); });
-  });
-}
-
 export async function installDeps(dir, uid) {
   const reqPath = path.join(dir, 'requirements.txt');
   const pkgPath = path.join(dir, 'package.json');
@@ -121,30 +101,21 @@ export async function installDeps(dir, uid) {
   if (fs.existsSync(reqPath)) {
     if (uid) await _sendFn(uid, '📦 Installing <b>requirements.txt</b>... Please wait.', { parse_mode: 'HTML' });
     try {
-      await runCommand('pip3', [
-        'install', '-r', reqPath,
-        '--quiet', '--break-system-packages', '--no-warn-script-location'
-      ], dir, 300000);
+      execSync(`pip3 install -r ${reqPath} --quiet --break-system-packages --no-warn-script-location`, {
+        cwd: dir, timeout: 300000, stdio: 'pipe'
+      });
     } catch (e) {
-      if (uid) await _sendFn(uid, `⚠️ <b>pip install warning:</b>\n<code>${String(e.message).slice(-400)}</code>`, { parse_mode: 'HTML' });
+      if (uid) await _sendFn(uid, `⚠️ <b>Install warning:</b>\n<code>${String(e.stderr || e.message).slice(-400)}</code>`, { parse_mode: 'HTML' });
     }
   }
 
   if (fs.existsSync(pkgPath) && !fs.existsSync(path.join(dir, 'node_modules'))) {
-    if (uid) await _sendFn(uid, '📦 Running <b>npm install</b>... (1-3 min)', { parse_mode: 'HTML' });
+    if (uid) await _sendFn(uid, '📦 Running <b>npm install</b>... (this may take 1-2 min)', { parse_mode: 'HTML' });
     try {
-      await runCommand('npm', ['install', '--legacy-peer-deps', '--prefer-offline'], dir, 600000);
+      execSync('npm install --legacy-peer-deps', { cwd: dir, timeout: 600000, stdio: 'pipe' });
       if (uid) await _sendFn(uid, '✅ <b>npm install done!</b>', { parse_mode: 'HTML' });
     } catch (e) {
-      if (uid) await _sendFn(uid, `⚠️ <b>npm install warning:</b>\n<code>${String(e.message).slice(-400)}</code>`, { parse_mode: 'HTML' });
-      // Retry without --prefer-offline
-      try {
-        if (uid) await _sendFn(uid, '🔄 Retrying npm install...', { parse_mode: 'HTML' });
-        await runCommand('npm', ['install', '--legacy-peer-deps'], dir, 600000);
-        if (uid) await _sendFn(uid, '✅ <b>npm install done!</b>', { parse_mode: 'HTML' });
-      } catch (e2) {
-        if (uid) await _sendFn(uid, `❌ <b>npm install failed:</b>\n<code>${String(e2.message).slice(-400)}</code>`, { parse_mode: 'HTML' });
-      }
+      if (uid) await _sendFn(uid, `⚠️ <b>npm install warning:</b>\n<code>${String(e.stderr || e.message).slice(-400)}</code>`, { parse_mode: 'HTML' });
     }
   }
 }
@@ -339,22 +310,13 @@ export async function runBot(uid, botName) {
 
     if (crashed) {
       await _db.incrementBotRestarts(uid, botName);
-      if (plan.auto_restart) {
-        await _sendFn(uid,
-          `⚠️ <b>BOT CRASHED — Auto Restarting...</b>\n\n` +
-          `🤖 <b>${botName}</b>\n🔄 Exit code: ${code}\n⏳ Restarting in 5s...`,
-          { parse_mode: 'HTML' }
-        );
-        setTimeout(() => runBot(uid, botName), 5000);
-      } else {
-        await _sendFn(uid,
-          `❌ <b>BOT CRASHED</b>\n\n` +
-          `🤖 <b>${botName}</b>\n` +
-          `❌ Exit code: ${code}\n\n` +
-          `💡 Upgrade plan for auto-restart!${BRAND_FOOTER}`,
-          { parse_mode: 'HTML' }
-        );
-      }
+      // Always auto-restart — bot never stops unless admin/user manually stops it
+      await _sendFn(uid,
+        `⚠️ <b>BOT CRASHED — Auto Restarting...</b>\n\n` +
+        `🤖 <b>${botName}</b>\n🔄 Exit code: ${code}\n⏳ Restarting in 5s...`,
+        { parse_mode: 'HTML' }
+      );
+      setTimeout(() => runBot(uid, botName), 5000);
     }
   });
 
