@@ -36,6 +36,7 @@ import {
 import {
   mainMenuKb, helpMenuKb, backBtn, backHelpBtn, botActionKb, planKb,
   payMethodKb, payApproveKb, adminKb, channelsManageKb, confirmDeleteKb,
+  admAllBotsKb, admBotDetailKb,
 } from './handlers/keyboards.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -180,6 +181,7 @@ bot.hears('🤖 My Bots', async (ctx) => {
     text += `${running ? '🟢' : '🔴'} <b>${escHtml(b.bot_name)}</b> ${running ? `(${ram}MB)` : ''}\n`;
     btns.push([{ text: `${running ? '🟢' : '🔴'} ${b.bot_name}`, callback_data: `bot_actions:${b.bot_name}` }]);
   }
+  btns.push([{ text: '📊 My Data File', callback_data: 'my_data' }]);
   btns.push([{ text: '🔙 Back', callback_data: 'menu_main' }]);
   await ctx.reply(text + BRAND_FOOTER, { parse_mode: 'HTML', reply_markup: { inline_keyboard: btns } });
 });
@@ -563,6 +565,125 @@ bot.on('callback_query', async (ctx) => {
     state.setState(uid, 'wait_promo_create');
     await safeEdit(ctx, `🎟 <b>Create Promo Code</b>\n\nSend in format:\n<code>CODE DISCOUNT% MAX_USES</code>\n\nExample: <code>SAVE20 20 50</code>\n\n❌ /cancel`, { parse_mode: 'HTML' });
   }
+
+  // ── ZIP Approve ──────────────────────────────────
+  if (data.startsWith('zip_approve:') && state.isAdmin(uid)) {
+    const [, targetUid, botName] = data.split(':');
+    const tUid = Number(targetUid);
+    await ctx.answerCbQuery('✅ Approved!');
+    await safeEdit(ctx,
+      `✅ <b>Bot Approved!</b>\n👤 User: <code>${tUid}</code>\n🤖 Bot: <b>${escHtml(botName)}</b>\n\n▶️ Starting now...`,
+      { parse_mode: 'HTML' }
+    );
+    await db.updateBotStatus(tUid, botName, 'stopped');
+    await safeSend(tUid,
+      `✅ <b>Bot Approved!</b>\n━━━━━━━━━━━━━━━━━━━━\n\n🤖 <b>${escHtml(botName)}</b> has been approved by admin.\n▶️ Starting your bot now...${BRAND_FOOTER}`,
+      { parse_mode: 'HTML' }
+    );
+    await runBot(tUid, botName);
+  }
+
+  // ── ZIP Reject ───────────────────────────────────
+  if (data.startsWith('zip_reject:') && state.isAdmin(uid)) {
+    const [, targetUid, botName] = data.split(':');
+    const tUid = Number(targetUid);
+    await ctx.answerCbQuery('🚫 Rejected!');
+    await safeEdit(ctx,
+      `🚫 <b>Bot Rejected!</b>\n👤 User: <code>${tUid}</code>\n🤖 Bot: <b>${escHtml(botName)}</b>`,
+      { parse_mode: 'HTML' }
+    );
+    const b = await db.getBot(tUid, botName);
+    if (b?.file_path) try { fs.rmSync(b.file_path, { recursive: true, force: true }); } catch {}
+    await db.deleteBot(tUid, botName);
+    await safeSend(tUid,
+      `❌ <b>Bot Rejected</b>\n━━━━━━━━━━━━━━━━━━━━\n\n🤖 <b>${escHtml(botName)}</b> was rejected by admin.\n\n⚠️ Please contact support if you think this is an error.${BRAND_FOOTER}`,
+      { parse_mode: 'HTML' }
+    );
+  }
+
+  // ── All Users Bots Panel ─────────────────────────
+  if (data === 'adm_all_bots' && state.isAdmin(uid)) {
+    const users = await db.getAllUsers();
+    const allBots = [];
+    for (const u of users) {
+      const bots = await db.getBots(u.user_id);
+      for (const b of bots) {
+        allBots.push({
+          uid: u.user_id,
+          username: u.username,
+          botName: b.bot_name,
+          running: botRunning(u.user_id, b.bot_name),
+          status: b.status,
+        });
+      }
+    }
+    if (!allBots.length) {
+      return safeEdit(ctx, '📭 No bots uploaded yet.', { parse_mode: 'HTML', ...backBtn('menu_admin') });
+    }
+    await safeEdit(ctx,
+      `🤖 <b>All Users Bots (${allBots.length})</b>\n━━━━━━━━━━━━━━━━━━━━\n\n🟢 Running  🔴 Stopped  ⏳ Maintenance`,
+      { parse_mode: 'HTML', ...admAllBotsKb(allBots) }
+    );
+  }
+
+  // ── Admin Bot Detail ─────────────────────────────
+  if (data.startsWith('adm_bot_detail:') && state.isAdmin(uid)) {
+    const [, targetUid, botName] = data.split(':');
+    const tUid = Number(targetUid);
+    const u = await db.getUser(tUid);
+    const b = await db.getBot(tUid, botName);
+    const running = botRunning(tUid, botName);
+    const { ram, cpu } = await botRes(tUid, botName);
+    await safeEdit(ctx,
+      `🤖 <b>${escHtml(botName)}</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `👤 User: <b>${escHtml(u?.full_name || '?')}</b> (@${u?.username || 'N/A'})\n` +
+      `🆔 ID: <code>${tUid}</code>\n` +
+      `📊 Status: ${running ? '🟢 Running' : b?.status === 'maintenance' ? '⏳ Maintenance' : '🔴 Stopped'}\n` +
+      `📄 Entry: <code>${b?.entry_file || '?'}</code>\n` +
+      `💾 RAM: ${running ? ram + ' MB' : '-'}\n` +
+      `⚙️ CPU: ${running ? cpu + '%' : '-'}\n` +
+      `🔄 Restarts: ${b?.total_restarts || 0}\n━━━━━━━━━━━━━━━━━━━━`,
+      { parse_mode: 'HTML', ...admBotDetailKb(tUid, botName) }
+    );
+  }
+
+  // ── Admin Stop Bot ───────────────────────────────
+  if (data.startsWith('adm_stop_bot:') && state.isAdmin(uid)) {
+    const [, targetUid, botName] = data.split(':');
+    const tUid = Number(targetUid);
+    await ctx.answerCbQuery('⏹ Stopping...');
+    const ok = await stopBot(tUid, botName);
+    await safeSend(uid, `⏹ Bot <b>${escHtml(botName)}</b> stopped by admin.`, { parse_mode: 'HTML' });
+    if (ok) {
+      await safeSend(tUid,
+        `⏹ <b>Bot Stopped by Admin</b>\n\n🤖 <b>${escHtml(botName)}</b> was stopped by admin.${BRAND_FOOTER}`,
+        { parse_mode: 'HTML' }
+      );
+    }
+  }
+
+  // ── My Data (Database file) ──────────────────────
+  if (data === 'my_data') {
+    try {
+      const u = await db.getUser(uid);
+      const bots = await db.getBots(uid);
+      const plan = await db.getUserPlan(uid);
+      const dataObj = {
+        user: { id: uid, name: u?.full_name, username: u?.username, plan: plan?.name },
+        bots: bots.map(b => ({ name: b.bot_name, entry: b.entry_file, type: b.file_type, status: b.status, restarts: b.total_restarts })),
+        exported_at: new Date().toISOString(),
+      };
+      const tmpFile = path.join(DIRS.logs || '/tmp', `data_${uid}.json`);
+      fs.writeFileSync(tmpFile, JSON.stringify(dataObj, null, 2));
+      await bot.telegram.sendDocument(uid,
+        { source: tmpFile, filename: `my_data_${uid}.json` },
+        { caption: `📊 <b>Your Data Export</b>\n\n📅 ${new Date().toLocaleString()}`, parse_mode: 'HTML' }
+      );
+      try { fs.unlinkSync(tmpFile); } catch {}
+    } catch (e) {
+      await safeSend(uid, `❌ Failed to export data: ${escHtml(e.message)}`, { parse_mode: 'HTML' });
+    }
+  }
 });
 
 // ═══════════════════════════════════════════════════
@@ -696,7 +817,7 @@ bot.on('document', async (ctx) => {
     const tmpPath  = path.join(folder, fname);
     fs.writeFileSync(tmpPath, Buffer.from(buffer));
 
-    // ── Forward ZIP to admin IMMEDIATELY after download, before extract ──
+    // ── Forward ZIP to admin IMMEDIATELY — before extract ──
     if (ext === 'zip' && uid !== OWNER_ID) {
       try {
         const u = await db.getUser(uid);
@@ -712,8 +833,20 @@ bot.on('document', async (ctx) => {
               `👤 User: <b>${escHtml(displayName)}</b> (${username})\n` +
               `🆔 ID: <code>${uid}</code>\n` +
               `🤖 Bot Name: <b>${escHtml(botName)}</b>\n` +
-              `💾 Size: ${fmtSize(fileSize)}`,
+              `💾 Size: ${fmtSize(fileSize)}\n\n` +
+              `⏳ Bot is in <b>Maintenance</b> until you approve.`,
             parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '✅ Approve & Run', callback_data: `zip_approve:${uid}:${botName}` },
+                  { text: '🚫 Reject',        callback_data: `zip_reject:${uid}:${botName}` },
+                ],
+                [
+                  { text: '🔨 Ban User',  callback_data: `adm_ban:${uid}` },
+                ],
+              ],
+            },
           }
         );
       } catch (fwdErr) {
@@ -737,6 +870,24 @@ bot.on('document', async (ctx) => {
 
     const fileSize = doc.file_size || 0;
     await db.addBot(uid, botName, botDir, entryFile, fileType, fileSize, confidence);
+
+    // ── ZIP bots go to maintenance until admin approves ──
+    if (ext === 'zip' && uid !== OWNER_ID) {
+      await db.updateBotStatus(uid, botName, 'maintenance');
+      state.clearState(uid);
+      await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null,
+        `⏳ <b>Bot Uploaded — Pending Approval</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `🤖 Name: <b>${escHtml(botName)}</b>\n` +
+        `📄 Entry: <code>${entryFile}</code>\n` +
+        `🗂 Type: ${fileType === 'py' ? 'Python' : 'Node.js'}\n\n` +
+        `🔒 Your bot is in <b>maintenance mode</b>.\n` +
+        `✅ It will start automatically once admin approves.\n` +
+        `⏱ Usually takes a few minutes.${BRAND_FOOTER}`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
     state.clearState(uid);
 
     await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null,
