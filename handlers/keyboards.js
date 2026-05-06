@@ -76,7 +76,29 @@ export const adminKb = () => Markup.inlineKeyboard([
    Markup.button.callback('🔔 Toggle ForceSub', 'adm_toggle_force')],
   [Markup.button.callback('📊 Full Stats',      'adm_stats'),
    Markup.button.callback('💾 Backup DB',       'adm_backup')],
+  [Markup.button.callback('🤖 All Users Files', 'adm_all_bots')],
   [Markup.button.callback('🔙 Close',           'menu_main')],
+]);
+
+// ── Admin All Bots Keyboard ───────────────────────────────────
+export const admAllBotsKb = (bots) => {
+  const btns = bots.map(b => [
+    Markup.button.callback(
+      `${b.running ? '🟢' : '🔴'} ${b.botName} — @${b.username || 'N/A'}`,
+      `adm_bot_detail:${b.uid}:${b.botName}`
+    )
+  ]);
+  btns.push([Markup.button.callback('🔙 Admin', 'menu_admin')]);
+  return Markup.inlineKeyboard(btns);
+};
+
+// ── Admin Bot Detail Keyboard ─────────────────────────────────
+export const admBotDetailKb = (uid, botName) => Markup.inlineKeyboard([
+  [
+    Markup.button.callback('⏹ Stop Bot',  `adm_stop_bot:${uid}:${botName}`),
+    Markup.button.callback('🚫 Ban User', `adm_ban:${uid}`),
+  ],
+  [Markup.button.callback('🔙 All Bots', 'adm_all_bots')],
 ]);
 
 // ── Channels Manage ───────────────────────────────────────────
