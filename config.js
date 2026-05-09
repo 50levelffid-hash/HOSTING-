@@ -81,7 +81,7 @@ export const PORT = parseInt(process.env.PORT || '8080');
 
 // ── Bot timing settings ──────────────────────────────────────
 // Free plan bots kitne ghante baad rukenge (0 = disabled)
-export const FREE_BOT_MAX_HOURS = parseInt(process.env.FREE_BOT_MAX_HOURS || '24');
+export const FREE_BOT_MAX_HOURS = 0; // Disabled — bots never stop automatically
 
 // Main bot kitne ghante baad auto restart hoga (0 = disabled)
 export const MAIN_BOT_AUTO_RESTART_HOURS = parseInt(process.env.MAIN_BOT_AUTO_RESTART_HOURS || '0');
