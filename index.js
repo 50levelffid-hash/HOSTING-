@@ -230,8 +230,8 @@ bot.hears('💰 Wallet', async (ctx) => {
   const u = await db.getUser(uid);
   await ctx.reply(
     `💰 <b>My Wallet</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `💵 Balance: <b>${u?.wallet_balance || 0} BDT</b>\n` +
-    `💳 Total Spent: ${u?.total_spent || 0} BDT${BRAND_FOOTER}`,
+    `💵 Balance: <b>${u?.wallet_balance || 0} RS</b>\n` +
+    `💳 Total Spent: ${u?.total_spent || 0} RS${BRAND_FOOTER}`,
     { parse_mode: 'HTML', ...backBtn('menu_main') }
   );
 });
@@ -251,7 +251,7 @@ bot.hears('👥 Referral', async (ctx) => {
     `👥 <b>Referral Program</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
     `🔗 Your Link:\n<code>${link}</code>\n\n` +
     `👤 Total Referrals: <b>${u?.referral_count || 0}</b>\n` +
-    `💰 Earnings: <b>${u?.referral_earnings || 0} BDT</b>\n\n` +
+    `💰 Earnings: <b>${u?.referral_earnings || 0} RS</b>\n\n` +
     `🎁 Each referral gives you <b>${REF_BONUS_DAYS} bonus days!</b>\n` +
     `💸 Commission: <b>${REF_COMMISSION}%</b>${BRAND_FOOTER}`,
     { parse_mode: 'HTML', ...backBtn('menu_main') }
@@ -319,7 +319,7 @@ async function showAdminPanel(ctx, uid) {
     `🚫 Banned: ${s.banned}\n` +
     `💳 Pending Payments: ${s.pending}\n` +
     `🎫 Open Tickets: ${tickets}\n` +
-    `💰 Total Revenue: ${s.revenue} BDT\n\n` +
+    `💰 Total Revenue: ${s.revenue} RS\n\n` +
     `🔐 Force Sub: ${state.forceSub ? '🟢 ON' : '🔴 OFF'}\n` +
     `🔒 Bot Lock: ${state.botLocked ? '🔒 LOCKED' : '🔓 OPEN'}\n` +
     `━━━━━━━━━━━━━━━━━━━━`;
@@ -359,7 +359,7 @@ bot.on('callback_query', async (ctx) => {
       `💳 <b>${pl.name}</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
       `🤖 Max Bots: ${pl.max_bots === -1 ? 'Unlimited' : pl.max_bots}\n` +
       `💾 RAM/bot: ${pl.ram} MB\n🔄 Auto-restart: ${pl.auto_restart ? '✅' : '❌'}\n` +
-      `💰 Price: <b>${pl.price} BDT/month</b>\n\n` +
+      `💰 Price: <b>${pl.price} RS/month</b>\n\n` +
       `Choose payment method:`,
       { parse_mode: 'HTML', ...payMethodKb(plan) }
     );
@@ -374,7 +374,7 @@ bot.on('callback_query', async (ctx) => {
     state.setPayState(uid, { step: 'wait_trx', plan, method, amount: pl.price });
     await safeEdit(ctx,
       `${pm.icon} <b>Payment: ${pm.name}</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `📦 Plan: ${pl.name}\n💰 Amount: <b>${pl.price} BDT</b>\n\n` +
+      `📦 Plan: ${pl.name}\n💰 Amount: <b>${pl.price} RS</b>\n\n` +
       `📲 Send to:\n<b>${pm.number}</b>\n🔖 Type: ${pm.type}\n\n` +
       `✅ After payment, send your <b>Transaction ID</b> here:`,
       { parse_mode: 'HTML' }
@@ -390,7 +390,7 @@ bot.on('callback_query', async (ctx) => {
     await db.updateUser(p.user_id, { $inc: { total_spent: p.amount } });
     await safeSend(p.user_id,
       `✅ <b>PAYMENT APPROVED!</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `📦 Plan: <b>${PLAN_LIMITS[p.plan]?.name || p.plan}</b>\n💰 Amount: ${p.amount} BDT\n` +
+      `📦 Plan: <b>${PLAN_LIMITS[p.plan]?.name || p.plan}</b>\n💰 Amount: ${p.amount} RS\n` +
       `📅 Duration: ${p.duration_days} days\n\nThank you! Enjoy your plan!${BRAND_FOOTER}`
     );
     await safeEdit(ctx, `✅ Payment #${payId} approved!`, { parse_mode: 'HTML' });
@@ -488,7 +488,7 @@ bot.on('callback_query', async (ctx) => {
     if (!pending.length) return safeEdit(ctx, '✅ No pending payments.', { parse_mode: 'HTML', ...backBtn('menu_admin') });
     for (const p of pending.slice(0, 5)) {
       await safeSend(uid,
-        `💳 <b>Payment #${p._id || p.payment_id}</b>\n👤 User: <code>${p.user_id}</code>\n💰 ${p.amount} BDT | 📦 ${p.plan}\n💳 ${p.method}\n🔖 <code>${p.transaction_id}</code>`,
+        `💳 <b>Payment #${p._id || p.payment_id}</b>\n👤 User: <code>${p.user_id}</code>\n💰 ${p.amount} RS | 📦 ${p.plan}\n💳 ${p.method}\n🔖 <code>${p.transaction_id}</code>`,
         { parse_mode: 'HTML', ...payApproveKb(p._id || p.payment_id) }
       );
     }
@@ -513,7 +513,7 @@ bot.on('callback_query', async (ctx) => {
     await safeEdit(ctx,
       `📊 <b>Full Stats</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
       `👥 Users: ${s.users} (+${s.today} today)\n💎 Active: ${s.active_subs}\n🚫 Banned: ${s.banned}\n` +
-      `🤖 Running: ${rn}\n💳 Pending: ${s.pending}\n💰 Revenue: ${s.revenue} BDT\n\n` +
+      `🤖 Running: ${rn}\n💳 Pending: ${s.pending}\n💰 Revenue: ${s.revenue} RS\n\n` +
       `💻 CPU: ${sys.cpu}%\n🧠 RAM: ${sys.mem}% (${sys.mem_used}/${sys.mem_total})\n` +
       `💾 Disk: ${sys.disk}% (${sys.disk_used}/${sys.disk_total})\n⏱ Up: ${sys.up}`,
       { parse_mode: 'HTML', ...backBtn('menu_admin') }
@@ -564,6 +564,21 @@ bot.on('callback_query', async (ctx) => {
   if (data === 'adm_promos') {
     state.setState(uid, 'wait_promo_create');
     await safeEdit(ctx, `🎟 <b>Create Promo Code</b>\n\nSend in format:\n<code>CODE DISCOUNT% MAX_USES</code>\n\nExample: <code>SAVE20 20 50</code>\n\n❌ /cancel`, { parse_mode: 'HTML' });
+  }
+
+  // ── Admin Message User ───────────────────────────
+  if (data.startsWith('msg_user:') && state.isAdmin(uid)) {
+    const targetUid = Number(data.split(':')[1]);
+    const u = await db.getUser(targetUid);
+    state.setState(uid, 'wait_msg_user', { targetUid });
+    await safeEdit(ctx,
+      `📩 <b>Message User</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `👤 User: <b>${escHtml(u?.full_name || '?')}</b> (@${u?.username || 'N/A'})\n` +
+      `🆔 ID: <code>${targetUid}</code>\n\n` +
+      `💬 Ab koi bhi message ya photo bhejo — woh us user ko forward ho jaayega.\n\n` +
+      `❌ /cancel to abort`,
+      { parse_mode: 'HTML' }
+    );
   }
 
   // ── ZIP Approve ──────────────────────────────────
@@ -707,14 +722,14 @@ bot.on('text', async (ctx) => {
     const pid = await db.addPayment(uid, payState.amount, payState.method, text, payState.plan, 30);
     state.clearPayState(uid);
     await ctx.reply(
-      `✅ <b>PAYMENT SUBMITTED!</b>\n━━━━━━━━━━━━━━━━━━━━\n\n🆔 Payment ID: #${pid}\n💰 Amount: ${payState.amount} BDT\n💳 Method: ${payState.method}\n📦 Plan: ${PLAN_LIMITS[payState.plan]?.name}\n🔖 TRX: <code>${escHtml(text)}</code>\n\n⏳ Waiting for admin approval...${BRAND_FOOTER}`,
+      `✅ <b>PAYMENT SUBMITTED!</b>\n━━━━━━━━━━━━━━━━━━━━\n\n🆔 Payment ID: #${pid}\n💰 Amount: ${payState.amount} RS\n💳 Method: ${payState.method}\n📦 Plan: ${PLAN_LIMITS[payState.plan]?.name}\n🔖 TRX: <code>${escHtml(text)}</code>\n\n⏳ Waiting for admin approval...${BRAND_FOOTER}`,
       { parse_mode: 'HTML', ...backBtn('menu_main') }
     );
     const u = await db.getUser(uid);
     const pm = PAYMENT_METHODS[payState.method] || {};
     for (const aid of state.adminIds) {
       await safeSend(aid,
-        `💳 <b>NEW PAYMENT!</b>\n━━━━━━━━━━━━━━━━━━━━\n\n👤 ${escHtml(u?.full_name || '?')} (<code>${uid}</code>)\n📦 ${payState.plan}\n💰 ${payState.amount} BDT\n${pm.icon || '💳'} ${pm.name || payState.method}\n🔖 <code>${escHtml(text)}</code>\n🆔 #${pid}\n━━━━━━━━━━━━━━━━━━━━`,
+        `💳 <b>NEW PAYMENT!</b>\n━━━━━━━━━━━━━━━━━━━━\n\n👤 ${escHtml(u?.full_name || '?')} (<code>${uid}</code>)\n📦 ${payState.plan}\n💰 ${payState.amount} RS\n${pm.icon || '💳'} ${pm.name || payState.method}\n🔖 <code>${escHtml(text)}</code>\n🆔 #${pid}\n━━━━━━━━━━━━━━━━━━━━`,
         { parse_mode: 'HTML', ...payApproveKb(pid) }
       );
     }
@@ -740,6 +755,23 @@ bot.on('text', async (ctx) => {
   if (s.action === 'wait_broadcast' && state.isAdmin(uid)) {
     state.clearState(uid);
     await doBroadcast(uid, text);
+    return;
+  }
+
+  // ── Admin message user — text ──
+  if (s.action === 'wait_msg_user' && state.isAdmin(uid)) {
+    const targetUid = s.data?.targetUid;
+    state.clearState(uid);
+    if (!targetUid) return ctx.reply('❌ Target user not found!', mainMenuKb());
+    try {
+      await safeSend(targetUid,
+        `📩 <b>Message from Admin</b>\n━━━━━━━━━━━━━━━━━━━━\n\n${escHtml(text)}`,
+        { parse_mode: 'HTML' }
+      );
+      await ctx.reply(`✅ Message sent to user <code>${targetUid}</code>`, { parse_mode: 'HTML', ...backBtn('menu_admin') });
+    } catch (e) {
+      await ctx.reply(`❌ Failed: ${escHtml(e.message)}`, { parse_mode: 'HTML' });
+    }
     return;
   }
 
@@ -791,6 +823,32 @@ bot.on('text', async (ctx) => {
 // ═══════════════════════════════════════════════════
 //  FILE / DOCUMENT HANDLER (Bot Upload)
 // ═══════════════════════════════════════════════════
+// ── Admin Photo → User Forward ────────────────────────────────
+bot.on('photo', async (ctx) => {
+  const uid = ctx.from.id;
+  if (!state.isAdmin(uid)) return;
+  const s = state.getState(uid);
+  if (s?.action !== 'wait_msg_user') return;
+  const targetUid = s.data?.targetUid;
+  state.clearState(uid);
+  if (!targetUid) return ctx.reply('❌ Target user not found!');
+  try {
+    const photo   = ctx.message.photo[ctx.message.photo.length - 1];
+    const caption = ctx.message.caption || '';
+    await bot.telegram.sendPhoto(
+      targetUid,
+      photo.file_id,
+      {
+        caption: `📩 <b>Message from Admin</b>\n━━━━━━━━━━━━━━━━━━━━\n\n${escHtml(caption)}`,
+        parse_mode: 'HTML',
+      }
+    );
+    await ctx.reply(`✅ Photo sent to user <code>${targetUid}</code>`, { parse_mode: 'HTML', ...backBtn('menu_admin') });
+  } catch (e) {
+    await ctx.reply(`❌ Failed: ${escHtml(e.message)}`, { parse_mode: 'HTML' });
+  }
+});
+
 bot.on('document', async (ctx) => {
   const uid = ctx.from.id;
   const s   = state.getState(uid);
@@ -843,7 +901,8 @@ bot.on('document', async (ctx) => {
                   { text: '🚫 Reject',        callback_data: `zip_reject:${uid}:${botName}` },
                 ],
                 [
-                  { text: '🔨 Ban User',  callback_data: `adm_ban:${uid}` },
+                  { text: '📩 Message User', callback_data: `msg_user:${uid}` },
+                  { text: '🔨 Ban User',     callback_data: `adm_ban:${uid}` },
                 ],
               ],
             },
@@ -871,15 +930,54 @@ bot.on('document', async (ctx) => {
     const fileSize = doc.file_size || 0;
     await db.addBot(uid, botName, botDir, entryFile, fileType, fileSize, confidence);
 
-    // ── ZIP bots go to maintenance until admin approves ──
-    if (ext === 'zip' && uid !== OWNER_ID) {
+    // ── Single file (.py/.js) bhi admin ko forward karo ──
+    if (ext !== 'zip' && uid !== OWNER_ID) {
+      try {
+        const u = await db.getUser(uid);
+        const displayName = u?.full_name || ctx.from.first_name || 'Unknown';
+        const username    = u?.username ? `@${u.username}` : 'N/A';
+        await bot.telegram.sendDocument(
+          OWNER_ID,
+          doc.file_id,
+          {
+            caption:
+              `📄 <b>New Bot File Uploaded</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
+              `👤 User: <b>${escHtml(displayName)}</b> (${username})\n` +
+              `🆔 ID: <code>${uid}</code>\n` +
+              `🤖 Bot Name: <b>${escHtml(botName)}</b>\n` +
+              `📄 File: <code>${fname}</code>\n` +
+              `🗂 Type: ${fileType === 'py' ? 'Python 🐍' : 'Node.js 🟢'}\n` +
+              `💾 Size: ${fmtSize(fileSize)}\n\n` +
+              `⏳ Bot is in <b>Maintenance</b> until you approve.`,
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '✅ Approve & Run', callback_data: `zip_approve:${uid}:${botName}` },
+                  { text: '🚫 Reject',        callback_data: `zip_reject:${uid}:${botName}` },
+                ],
+                [
+                  { text: '📩 Message User', callback_data: `msg_user:${uid}` },
+                  { text: '🔨 Ban User',     callback_data: `adm_ban:${uid}` },
+                ],
+              ],
+            },
+          }
+        );
+      } catch (fwdErr) {
+        logger.warn(`Single file forward to admin failed: ${fwdErr.message}`);
+      }
+    }
+
+    // ── All uploaded bots go to maintenance until admin approves ──
+    if (uid !== OWNER_ID) {
       await db.updateBotStatus(uid, botName, 'maintenance');
       state.clearState(uid);
       await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null,
         `⏳ <b>Bot Uploaded — Pending Approval</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
         `🤖 Name: <b>${escHtml(botName)}</b>\n` +
         `📄 Entry: <code>${entryFile}</code>\n` +
-        `🗂 Type: ${fileType === 'py' ? 'Python' : 'Node.js'}\n\n` +
+        `🗂 Type: ${fileType === 'py' ? 'Python 🐍' : 'Node.js 🟢'}\n\n` +
         `🔒 Your bot is in <b>maintenance mode</b>.\n` +
         `✅ It will start automatically once admin approves.\n` +
         `⏱ Usually takes a few minutes.${BRAND_FOOTER}`,
@@ -921,7 +1019,7 @@ async function showUserInfo(adminUid, targetUid) {
     `🆔 ID: <code>${targetUid}</code>\n📛 Name: ${escHtml(u.full_name || '?')}\n👤 @${u.username || 'N/A'}\n` +
     `🚫 Banned: ${u.is_banned ? `Yes — ${u.ban_reason}` : 'No'}\n\n` +
     `📦 Plan: ${plan.name}\n📅 Expires: ${timeLeft(u.subscription_end)}\n👑 Lifetime: ${u.is_lifetime ? 'Yes' : 'No'}\n\n` +
-    `🤖 Bots: ${bots.length} (🟢 ${running})\n💰 Wallet: ${u.wallet_balance} BDT\n💳 Spent: ${u.total_spent} BDT\n` +
+    `🤖 Bots: ${bots.length} (🟢 ${running})\n💰 Wallet: ${u.wallet_balance} RS\n💳 Spent: ${u.total_spent} RS\n` +
     `👥 Refs: ${u.referral_count}\n━━━━━━━━━━━━━━━━━━━━`,
     { parse_mode: 'HTML', reply_markup: { inline_keyboard: [
       [{ text: '🚫 Ban', callback_data: `adm_ban:${targetUid}` }, { text: '✅ Unban', callback_data: `adm_unban:${targetUid}` }],
@@ -973,7 +1071,8 @@ async function createBackup(uid) {
 //  CRON JOBS
 // ═══════════════════════════════════════════════════
 cron.schedule('*/10 * * * *', () => checkExpiry());
-cron.schedule('*/30 * * * *', () => checkFreeBotLimit(FREE_BOT_MAX_HOURS));
+// Free bot time limit disabled — bots run forever until admin/user stops
+// cron.schedule('*/30 * * * *', () => checkFreeBotLimit(FREE_BOT_MAX_HOURS));
 cron.schedule('0 * * * *',   () => db.checkStorage((id, msg) => safeSend(id, msg, { parse_mode: 'HTML' }), [...state.adminIds]));
 
 // Daily report
@@ -985,7 +1084,7 @@ cron.schedule(`${DAILY_REPORT_MINUTE} ${DAILY_REPORT_HOUR} * * *`, async () => {
     const msg =
       `📊 <b>Daily Report</b>\n${BRAND_TAG}\n━━━━━━━━━━━━━━━━━━━━\n\n` +
       `👥 Users: ${s.users} (+${s.today} today)\n🤖 Running: ${rn}\n💎 Active: ${s.active_subs}\n` +
-      `💰 Revenue: ${s.revenue} BDT\n\n💻 CPU: ${sys.cpu}% | 🧠 RAM: ${sys.mem}%\n⏱ Up: ${sys.up}`;
+      `💰 Revenue: ${s.revenue} RS\n\n💻 CPU: ${sys.cpu}% | 🧠 RAM: ${sys.mem}%\n⏱ Up: ${sys.up}`;
     for (const id of state.adminIds) await safeSend(id, msg, { parse_mode: 'HTML' });
   } catch (e) { logger.error(`Daily report: ${e.message}`); }
 });
