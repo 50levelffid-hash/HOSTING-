@@ -210,12 +210,25 @@ async function forwardBotFilesToAdmin(uid, botName, botDir, entryFile, fileType)
 export async function runBot(uid, botName) {
   const key     = `${uid}_${botName}`;
   const botInfo = await _db.getBot(uid, botName);
-  if (!botInfo) return _sendFn(uid, '❌ Bot not found!');
+  if (!botInfo) return _sendFn(uid, '❌ Bot not found in database! Please upload your bot again.');
 
   if (isRunning(key)) return _sendFn(uid, '⚠️ Bot is already running!');
 
   const plan   = await _db.getUserPlan(uid);
   const botDir = botInfo.file_path;
+
+  // ── Check if bot folder exists on disk ──
+  if (!botDir || !fs.existsSync(botDir)) {
+    await _db.deleteBot(uid, botName);
+    await _sendFn(uid,
+      `⚠️ <b>Bot Files Missing</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `🤖 <b>${botName}</b> ki files server restart se delete ho gayi hain.\n\n` +
+      `📤 Please <b>Upload Bot</b> se dobara upload karo.\n` +
+      `⚡ Yeh sirf server restart ki wajah se hua tha.`,
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
 
   await installDeps(botDir, uid);
 
@@ -228,17 +241,12 @@ export async function runBot(uid, botName) {
     const detected = detectEntry(botDir);
     file = detected.file;
     type = detected.type;
-    // DB update karo
-    if (file) await _db.updateBotStatus(uid, botName, 'stopped'); // just to trigger save
+    if (file) await _db.updateBotStatus(uid, botName, 'stopped').catch(() => {});
   }
 
   if (!file) {
-    // List karo kya files hain debug ke liye
     let fileList = 'No files found';
-    try {
-      const files = fs.readdirSync(botDir);
-      fileList = files.slice(0, 10).join(', ');
-    } catch {}
+    try { fileList = fs.readdirSync(botDir).slice(0, 10).join(', '); } catch {}
     await _sendFn(uid,
       `❌ <b>Entry file not found!</b>\n\n` +
       `📁 Files in bot folder:\n<code>${fileList}</code>\n\n` +
