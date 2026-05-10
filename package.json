@@ -6,7 +6,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "postinstall": "pip3 install aiohttp aiogram pyrogram telethon pyTelegramBotAPI python-telegram-bot requests httpx python-dotenv Pillow aiofiles asyncio-mqtt motor pymongo pydantic PyYAML cryptography PyJWT pytz python-dateutil openai anthropic yt-dlp instaloader tweepy flask fastapi uvicorn aiohttp-cors --quiet --break-system-packages --no-warn-script-location 2>/dev/null || pip install aiohttp aiogram pyrogram telethon pyTelegramBotAPI python-telegram-bot requests httpx python-dotenv Pillow aiofiles motor pymongo pydantic PyYAML cryptography PyJWT pytz python-dateutil openai anthropic yt-dlp instaloader tweepy flask fastapi uvicorn --quiet --break-system-packages --no-warn-script-location 2>/dev/null || python3 -m pip install aiohttp aiogram pyrogram telethon pyTelegramBotAPI python-telegram-bot requests httpx python-dotenv Pillow aiofiles motor pymongo pydantic PyYAML --quiet --user 2>/dev/null || true"
   },
   "dependencies": {
     "telegraf": "^4.16.3",
