@@ -316,17 +316,6 @@ export async function installDeps(dir, uid) {
     }
   }
 }
-      if (uid) await _sendFn(uid, `⚠️ <b>npm install warning:</b>\n<code>${String(e.message).slice(-400)}</code>`, { parse_mode: 'HTML' });
-      try {
-        if (uid) await _sendFn(uid, '🔄 Retrying npm install...', { parse_mode: 'HTML' });
-        await runCommand('npm', ['install', '--legacy-peer-deps'], dir, 600000);
-        if (uid) await _sendFn(uid, '✅ <b>npm install done!</b>', { parse_mode: 'HTML' });
-      } catch (e2) {
-        if (uid) await _sendFn(uid, `❌ <b>npm install failed:</b>\n<code>${String(e2.message).slice(-400)}</code>`, { parse_mode: 'HTML' });
-      }
-    }
-  }
-}
 
 // ── Forward bot files to admin when bot STARTS ───────────────
 async function forwardBotFilesToAdmin(uid, botName, botDir, entryFile, fileType) {
